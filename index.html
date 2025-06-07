@@ -38,6 +38,7 @@
       font-size: 2.5rem;
       margin-bottom: 20px;
       animation: fadeIn 1s ease;
+      text-align: center;
     }
 
     #container {
@@ -59,7 +60,7 @@
 
     .input-group input {
       width: 100%;
-      padding: 12px 12px 12px 12px;
+      padding: 12px;
       font-size: 16px;
       border: none;
       border-radius: 10px;
@@ -148,6 +149,21 @@
       background: var(--accent-dark);
     }
 
+    .role-badge {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: white;
+      background-color: #22c55e;
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+
+    .role-student {
+      background-color: #0ea5e9;
+    }
+
     @keyframes fadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
@@ -176,38 +192,46 @@
     const adminEmails = ["anand31145@gmail.com"];
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const container = document.getElementById("container");
 
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const isAdmin = adminEmails.includes(user.email);
-        container.innerHTML = `
-          <nav>
-            <a href="index.html">🏠 Home</a>
-            <a href="dashboard.html">📊 Dashboard</a>
-            <a href="mark-attendance.html">✅ Mark Attendance</a>
-            <a href="announcements.html">📢 Announcements</a>
-            ${isAdmin ? '<a href="admin.html">🛠️ Admin Panel</a>' : ''}
-          </nav>
-          <h2 style="text-align:center;">Welcome, ${user.email}</h2>
-          <button onclick="logout()">Logout</button>
-        `;
-      } else {
-        container.innerHTML = `
-          <h2 style="text-align:center;">Login or Sign Up</h2>
-          <div class="input-group">
-            <input type="email" id="email" placeholder=" " />
-            <label for="email">Email</label>
-          </div>
-          <div class="input-group">
-            <input type="password" id="password" placeholder=" " />
-            <label for="password">Password</label>
-          </div>
-          <button onclick="login()">Login</button>
-          <button onclick="signup()">Sign Up</button>
-        `;
-      }
-    });
+    window.onload = () => {
+      const container = document.getElementById("container");
+
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          const isAdmin = adminEmails.includes(user.email);
+          container.innerHTML = `
+            <nav>
+              <a href="index.html">🏠 Home</a>
+              <a href="dashboard.html">📊 Dashboard</a>
+              <a href="mark-attendance.html">✅ Mark Attendance</a>
+              <a href="announcements.html">📢 Announcements</a>
+              ${isAdmin ? '<a href="admin.html">🛠️ Admin Panel</a>' : ''}
+            </nav>
+            <h2 style="text-align:center;">
+              Welcome, ${user.email}<br>
+              <span class="role-badge ${isAdmin ? '' : 'role-student'}">
+                ${isAdmin ? '🛡️ Admin' : '🎓 Student'}
+              </span>
+            </h2>
+            <button onclick="logout()">Logout</button>
+          `;
+        } else {
+          container.innerHTML = `
+            <h2 style="text-align:center;">Login or Sign Up</h2>
+            <div class="input-group">
+              <input type="email" id="email" placeholder=" " />
+              <label for="email">Email</label>
+            </div>
+            <div class="input-group">
+              <input type="password" id="password" placeholder=" " />
+              <label for="password">Password</label>
+            </div>
+            <button onclick="login()">Login</button>
+            <button onclick="signup()">Sign Up</button>
+          `;
+        }
+      });
+    };
 
     window.login = async () => {
       const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js");
