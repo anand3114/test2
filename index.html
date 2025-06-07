@@ -1,0 +1,97 @@
+<!-- ✅ index.html (Main Homepage & Login System) -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome - ChemEng Attendance Portal</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, button { margin: 5px; padding: 8px; }
+    nav a { margin-right: 10px; text-decoration: none; color: blue; }
+    nav { margin-bottom: 20px; }
+  </style>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
+      authDomain: "attendance311.firebaseapp.com",
+      projectId: "attendance311",
+      storageBucket: "attendance311.firebasestorage.app",
+      messagingSenderId: "564903256212",
+      appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
+      measurementId: "G-NZEEX42J3P"
+    };
+
+    const adminEmails = ["anand31145@gmail.com"];
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const container = document.getElementById("container");
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const isAdmin = adminEmails.includes(user.email);
+        container.innerHTML = `
+          <nav>
+            <a href="index.html">🏠 Home</a>
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a href="mark-attendance.html">✅ Mark Attendance</a>
+            <a href="announcements.html">📢 Announcements</a>
+            ${isAdmin ? '<a href="admin.html">🛠️ Admin Panel</a>' : ''}
+          </nav>
+          <h2>Welcome, ${user.email}</h2>
+          <p>Choose an option from the menu above.</p>
+          <button onclick="logout()">Logout</button>
+        `;
+      } else {
+        container.innerHTML = `
+          <h2>Login or Sign Up</h2>
+          <input type="email" id="email" placeholder="Email"><br>
+          <input type="password" id="password" placeholder="Password"><br><br>
+          <button onclick="login()">Login</button>
+          <button onclick="signup()">Sign Up</button>
+        `;
+      }
+    });
+
+    window.login = async () => {
+      const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js");
+      const email = document.getElementById("email").value;
+      const pass = document.getElementById("password").value;
+      signInWithEmailAndPassword(auth, email, pass)
+        .then(() => location.reload())
+        .catch(e => alert(e.message));
+    };
+
+    window.signup = async () => {
+      const { createUserWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js");
+      const email = document.getElementById("email").value;
+      const pass = document.getElementById("password").value;
+      createUserWithEmailAndPassword(auth, email, pass)
+        .then(() => location.reload())
+        .catch(e => alert(e.message));
+    };
+
+    window.logout = () => {
+      signOut(auth).then(() => location.reload());
+    };
+  </script>
+</head>
+<body>
+  <h1>ChemEng Attendance Portal</h1>
+  <div id="container">Loading...</div>
+</body>
+</html>
+
+<!-- ✅ Use this snippet inside other HTML files like dashboard.html, mark-attendance.html, etc. -->
+<nav>
+  <a href="index.html">🏠 Home</a> |
+  <a href="dashboard.html">📊 Dashboard</a> |
+  <a href="mark-attendance.html">✅ Mark Attendance</a> |
+  <a href="announcements.html">📢 Announcements</a>
+</nav>
+
+<!-- ❌ Delete login.html (not needed anymore as login is handled in index.html) -->

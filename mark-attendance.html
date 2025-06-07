@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mark Attendance</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
+      authDomain: "attendance311.firebaseapp.com",
+      projectId: "attendance311",
+      storageBucket: "attendance311.firebasestorage.app",
+      messagingSenderId: "564903256212",
+      appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
+      measurementId: "G-NZEEX42J3P"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const uid = user.uid;
+        const ref = doc(db, "attendance", uid);
+        const snapshot = await getDoc(ref);
+        const existing = snapshot.exists() ? snapshot.data() : { totalClasses: 0, totalPresent: 0 };
+
+        const updated = {
+          totalClasses: (existing.totalClasses || 0) + 1,
+          totalPresent: (existing.totalPresent || 0) + 1,
+          totalAbsent: ((existing.totalClasses || 0) + 1) - ((existing.totalPresent || 0) + 1)
+        };
+
+        await setDoc(ref, updated);
+        document.body.innerHTML += `<p>✅ Attendance marked! Go to <a href="dashboard.html">Dashboard</a></p>`;
+      } else {
+        alert("Please log in first");
+        window.location.href = "login.html";
+      }
+    });
+  </script>
+</head>
+<body>
+  <h2>Marking Attendance...</h2>
+</body>
+</html>
