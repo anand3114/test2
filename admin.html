@@ -2,115 +2,184 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Dashboard - All Students</title>
+  <title>Admin - Post Announcements</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg: #f4f6fc;
+      --bg-dark: #1e1e2f;
+      --text: #1c1c1c;
+      --text-dark: #f5f5f5;
+      --card: #ffffff;
+      --card-dark: #2a2a3c;
+      --accent: #3f83f8;
+      --accent-dark: #2b66d1;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background-color: #f3f6fb;
       margin: 0;
-      padding: 20px;
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      transition: all 0.3s ease-in-out;
+      padding: 30px 20px;
     }
-    h1 {
+
+    body.dark-mode {
+      background-color: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    h2 {
       text-align: center;
-      color: #111;
+      margin-bottom: 25px;
     }
-    table {
-      width: 90%;
+
+    .card {
+      max-width: 600px;
       margin: auto;
-      border-collapse: collapse;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background-color: var(--card);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      transition: background 0.3s;
     }
-    th, td {
+
+    body.dark-mode .card {
+      background-color: var(--card-dark);
+    }
+
+    input, textarea {
+      width: 100%;
+      margin: 12px 0;
       padding: 12px;
-      text-align: center;
+      border-radius: 8px;
       border: 1px solid #ccc;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: border 0.2s;
     }
-    th {
-      background-color: #3b82f6;
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 5px var(--accent);
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    button {
+      width: 100%;
+      background-color: var(--accent);
       color: white;
+      border: none;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s;
     }
-    #error {
-      color: red;
+
+    button:hover {
+      background-color: var(--accent-dark);
+    }
+
+    .success {
       text-align: center;
+      color: green;
       margin-top: 20px;
+      font-weight: 600;
+    }
+
+    .toggle-mode {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 12px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      transition: background 0.3s ease;
+    }
+
+    .toggle-mode:hover {
+      background: var(--accent-dark);
     }
   </style>
-</head>
-<body>
-  <h1>Admin Dashboard - All Students</h1>
-  <div id="error"></div>
-  <table id="studentTable">
-    <thead>
-      <tr>
-        <th>Email</th>
-        <th>Present</th>
-        <th>Absent</th>
-        <th>Total Classes</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
-    // ✅ Your Firebase Config
     const firebaseConfig = {
-      apiKey: "AIzaSyCUi0onRj7M8El8Iv1PgERpgpjzb5X0rCI",
+      apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
       authDomain: "attendance311.firebaseapp.com",
       projectId: "attendance311",
-      storageBucket: "attendance311.appspot.com",
-      messagingSenderId: "120133746939",
-      appId: "1:120133746939:web:3794d01a14991e5c78f3d5"
+      storageBucket: "attendance311.firebasestorage.app",
+      messagingSenderId: "564903256212",
+      appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
+      measurementId: "G-NZEEX42J3P"
     };
-
-    const adminEmails = ["anand31145@gmail.com"]; // ✅ Add your admin email(s) here
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    const adminEmails = ["anand31145@gmail.com"];
+
     onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        console.warn("User not logged in");
+      if (user && adminEmails.includes(user.email)) {
+        const postBtn = document.getElementById("post");
+        postBtn.onclick = async () => {
+          const title = document.getElementById("title").value.trim();
+          const content = document.getElementById("content").value.trim();
+          const success = document.getElementById("success");
+
+          if (!title || !content) {
+            alert("Please fill in both fields.");
+            return;
+          }
+
+          await addDoc(collection(db, "announcements"), {
+            title,
+            content,
+            date: serverTimestamp()
+          });
+
+          success.textContent = "✅ Announcement posted successfully!";
+          document.getElementById("title").value = "";
+          document.getElementById("content").value = "";
+        };
+      } else {
+        alert("❌ Not authorized");
         window.location.href = "index.html";
-        return;
-      }
-
-      const email = user.email.toLowerCase();
-      console.log("Logged in as:", email);
-
-      if (!adminEmails.includes(email)) {
-        console.warn("User is not admin, redirecting to dashboard...");
-        window.location.href = "dashboard.html";
-        return;
-      }
-
-      try {
-        const snapshot = await getDocs(collection(db, "attendance"));
-        const tableBody = document.querySelector("#studentTable tbody");
-        tableBody.innerHTML = "";
-
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${data.email || "Unknown"}</td>
-            <td>${data.totalPresent || 0}</td>
-            <td>${data.totalAbsent || 0}</td>
-            <td>${data.totalClasses || 0}</td>
-          `;
-          tableBody.appendChild(row);
-        });
-
-        console.log("Data loaded successfully.");
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        document.getElementById("error").textContent = "⚠️ Failed to load data. Check console.";
       }
     });
+
+    window.toggleMode = () => {
+      document.body.classList.toggle("dark-mode");
+    };
   </script>
+</head>
+<body>
+  <button class="toggle-mode" onclick="toggleMode()">🌗</button>
+  <h2>Admin - Post New Announcement</h2>
+  <div class="card">
+    <input type="text" id="title" placeholder="Enter Title" />
+    <textarea id="content" placeholder="Write your announcement..."></textarea>
+    <button id="post">📢 Post Announcement</button>
+    <div id="success" class="success"></div>
+  </div>
 </body>
 </html>
