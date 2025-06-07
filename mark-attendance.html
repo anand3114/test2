@@ -97,70 +97,52 @@
     }
   </style>
 
- <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
-    authDomain: "attendance311.firebaseapp.com",
-    projectId: "attendance311",
-    storageBucket: "attendance311.firebasestorage.app",
-    messagingSenderId: "564903256212",
-    appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
-    measurementId: "G-NZEEX42J3P"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
+      authDomain: "attendance311.firebaseapp.com",
+      projectId: "attendance311",
+      storageBucket: "attendance311.firebasestorage.app",
+      messagingSenderId: "564903256212",
+      appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
+      measurementId: "G-NZEEX42J3P"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-  const statusBox = document.getElementById("status");
+    const statusBox = document.getElementById("status");
 
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      const uid = user.uid;
-      const ref = doc(db, "attendance", uid);
-      const snapshot = await getDoc(ref);
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const uid = user.uid;
+        const ref = doc(db, "attendance", uid);
+        const snapshot = await getDoc(ref);
+        const existing = snapshot.exists() ? snapshot.data() : { totalClasses: 0, totalPresent: 0 };
 
-      let existing = {};
-      let name = "";
+        const updated = {
+          totalClasses: (existing.totalClasses || 0) + 1,
+          totalPresent: (existing.totalPresent || 0) + 1,
+          totalAbsent: ((existing.totalClasses || 0) + 1) - ((existing.totalPresent || 0) + 1)
+        };
 
-      if (snapshot.exists()) {
-        existing = snapshot.data();
-        name = existing.name || "";
+        await setDoc(ref, updated);
+        statusBox.innerHTML = `✅ Attendance marked!<br><br><a href="dashboard.html">Go to Dashboard</a>`;
+      } else {
+        alert("Please log in first");
+        window.location.href = "index.html";
       }
+    });
 
-      // Ask for name only if not stored
-      if (!name) {
-        name = prompt("Please enter your full name:");
-        if (!name) {
-          alert("Name is required to mark attendance.");
-          return;
-        }
-      }
-
-      const updated = {
-        name: name,
-        totalClasses: (existing.totalClasses || 0) + 1,
-        totalPresent: (existing.totalPresent || 0) + 1,
-        totalAbsent: ((existing.totalClasses || 0) + 1) - ((existing.totalPresent || 0) + 1)
-      };
-
-      await setDoc(ref, updated);
-      statusBox.innerHTML = `✅ Attendance marked for <strong>${name}</strong>!<br><br><a href="dashboard.html">Go to Dashboard</a>`;
-    } else {
-      alert("Please log in first");
-      window.location.href = "index.html";
-    }
-  });
-
-  window.toggleMode = () => {
-    document.body.classList.toggle('dark-mode');
-  };
-</script>
-
+    window.toggleMode = () => {
+      document.body.classList.toggle('dark-mode');
+    };
+  </script>
 </head>
 <body>
   <button class="toggle-mode" onclick="toggleMode()">🌗</button>
