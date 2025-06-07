@@ -2,59 +2,64 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin Dashboard - All Students</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f2f4fa;
+      background-color: #f3f6fb;
+      margin: 0;
       padding: 20px;
+    }
+    h1 {
       text-align: center;
+      color: #111;
     }
     table {
       width: 90%;
       margin: auto;
       border-collapse: collapse;
-      background: white;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     th, td {
       padding: 12px;
-      border: 1px solid #ddd;
+      text-align: center;
+      border: 1px solid #ccc;
     }
     th {
-      background-color: #4285f4;
+      background-color: #3b82f6;
       color: white;
     }
-    h2 {
-      margin-bottom: 20px;
+    #error {
+      color: red;
+      text-align: center;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <h2>Admin Dashboard - All Students</h2>
-  <table id="studentsTable">
+  <h1>Admin Dashboard - All Students</h1>
+  <div id="error"></div>
+  <table id="studentTable">
     <thead>
       <tr>
         <th>Email</th>
-        <th>Total Present</th>
-        <th>Total Absent</th>
+        <th>Present</th>
+        <th>Absent</th>
         <th>Total Classes</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
-  <p id="error" style="color: red; margin-top: 20px;"></p>
-
-  <!-- Firebase Libraries -->
   <script type="module">
+    // Firebase v11 SDK import
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
+    // ✅ Replace with YOUR Firebase Config
     const firebaseConfig = {
-      apiKey: "AIzaSyBboA-EWQZz9CXM0CUuqtP6vLu-LIrTRgE",
+      apiKey: "AIzaSyCUi0onRj7M8El8Iv1PgERpgpjzb5X0rCI",
       authDomain: "attendance311.firebaseapp.com",
       projectId: "attendance311",
       storageBucket: "attendance311.appspot.com",
@@ -63,40 +68,41 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
-    const auth = getAuth();
 
-    const tableBody = document.querySelector("#studentsTable tbody");
-    const errorMsg = document.getElementById("error");
+    const adminEmails = ["admin@gmail.com", "anand@example.com"]; // ✅ Replace with your admin emails
 
     onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const attendanceRef = collection(db, "attendance");
-          const snapshot = await getDocs(attendanceRef);
+      if (!user) {
+        window.location.href = "index.html"; // Not logged in
+        return;
+      }
 
-          if (snapshot.empty) {
-            errorMsg.textContent = "No student records found.";
-            return;
-          }
+      if (!adminEmails.includes(user.email)) {
+        window.location.href = "dashboard.html"; // Not an admin
+        return;
+      }
 
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            const row = document.createElement("tr");
-            row.innerHTML = `
-              <td>${data.email || "(Unknown)"}</td>
-              <td>${data.totalPresent || 0}</td>
-              <td>${data.totalAbsent || 0}</td>
-              <td>${data.totalClasses || 0}</td>
-            `;
-            tableBody.appendChild(row);
-          });
-        } catch (err) {
-          console.error("Error fetching data:", err);
-          errorMsg.textContent = "Failed to load data. Check console.";
-        }
-      } else {
-        errorMsg.textContent = "You must be logged in to view this page.";
+      try {
+        const snapshot = await getDocs(collection(db, "attendance"));
+        const tableBody = document.querySelector("#studentTable tbody");
+        tableBody.innerHTML = "";
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${data.email || "Unknown"}</td>
+            <td>${data.totalPresent || 0}</td>
+            <td>${data.totalAbsent || 0}</td>
+            <td>${data.totalClasses || 0}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } catch (err) {
+        console.error("Error fetching admin data:", err);
+        document.getElementById("error").textContent = "⚠️ Failed to load data. Check console.";
       }
     });
   </script>
