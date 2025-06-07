@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin - Post Announcements</title>
+  <title>Admin - Post Announcements & View Attendance</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
   <style>
     :root {
       --bg: #f4f6fc;
@@ -37,7 +38,7 @@
     }
 
     .card {
-      max-width: 600px;
+      max-width: 900px;
       margin: auto;
       background-color: var(--card);
       padding: 30px;
@@ -115,18 +116,49 @@
     .toggle-mode:hover {
       background: var(--accent-dark);
     }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #e9eefc;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    body.dark-mode table {
+      color: var(--text-dark);
+    }
+
+    body.dark-mode th {
+      background-color: #3a3f5a;
+    }
+
+    body.dark-mode tr:nth-child(even) {
+      background-color: #2d2f45;
+    }
+
   </style>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
       authDomain: "attendance311.firebaseapp.com",
       projectId: "attendance311",
-      storageBucket: "attendance311.firebasestorage.app",
+      storageBucket: "attendance311.appspot.com",
       messagingSenderId: "564903256212",
       appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
       measurementId: "G-NZEEX42J3P"
@@ -136,12 +168,12 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    const adminEmails = ["anand31145@gmail.com"];
+    const adminEmails = ["anand31145@gmail.com"]; // Add more admin emails if needed
 
     onAuthStateChanged(auth, async (user) => {
       if (user && adminEmails.includes(user.email)) {
-        const postBtn = document.getElementById("post");
-        postBtn.onclick = async () => {
+        // Post Announcement
+        document.getElementById("post").onclick = async () => {
           const title = document.getElementById("title").value.trim();
           const content = document.getElementById("content").value.trim();
           const success = document.getElementById("success");
@@ -161,6 +193,9 @@
           document.getElementById("title").value = "";
           document.getElementById("content").value = "";
         };
+
+        // Load Attendance Dashboard
+        loadAttendanceDashboard();
       } else {
         alert("❌ Not authorized");
         window.location.href = "index.html";
@@ -170,16 +205,61 @@
     window.toggleMode = () => {
       document.body.classList.toggle("dark-mode");
     };
+
+    async function loadAttendanceDashboard() {
+      const container = document.getElementById("attendance-list");
+      container.innerHTML = "<p>Loading attendance records...</p>";
+
+      try {
+        const snapshot = await getDocs(collection(db, "attendance"));
+        if (snapshot.empty) {
+          container.innerHTML = "<p>No attendance data found.</p>";
+          return;
+        }
+
+        let html = "<table><thead><tr><th>👤 Student ID</th><th>Total Classes</th><th>Present</th><th>Absent</th><th>Attendance %</th></tr></thead><tbody>";
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const id = doc.id;
+          const present = data.totalPresent || 0;
+          const absent = data.totalAbsent || 0;
+          const total = data.totalClasses || 0;
+          const percent = total > 0 ? ((present / total) * 100).toFixed(2) : "0.00";
+
+          html += `<tr>
+                    <td>${id}</td>
+                    <td>${total}</td>
+                    <td>${present}</td>
+                    <td>${absent}</td>
+                    <td>${percent}%</td>
+                  </tr>`;
+        });
+
+        html += "</tbody></table>";
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = `<p style="color:red;">Error loading attendance: ${err.message}</p>`;
+        console.error("Error fetching attendance:", err);
+      }
+    }
   </script>
 </head>
+
 <body>
   <button class="toggle-mode" onclick="toggleMode()">🌗</button>
-  <h2>Admin - Post New Announcement</h2>
+
+  <h2>📝 Admin - Post New Announcement</h2>
   <div class="card">
     <input type="text" id="title" placeholder="Enter Title" />
     <textarea id="content" placeholder="Write your announcement..."></textarea>
     <button id="post">📢 Post Announcement</button>
     <div id="success" class="success"></div>
+  </div>
+
+  <h2 style="margin-top: 60px;">📊 Student Attendance Dashboard</h2>
+  <div id="attendance-list" class="card">
+    <p>Loading attendance records...</p>
   </div>
 </body>
 </html>
