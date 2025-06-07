@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
+     :root {
       --bg: linear-gradient(135deg, #dbeafe, #f0fdfa);
       --glass: rgba(255, 255, 255, 0.15);
       --border: rgba(255, 255, 255, 0.2);
@@ -174,13 +174,14 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
 
-    window.onload = () => {
-      const container = document.getElementById("container");
+    let isSignupMode = false;
 
+    window.onload = () => {
+      renderLoginForm();
       onAuthStateChanged(auth, (user) => {
         if (user) {
           const isAdmin = adminEmails.includes(user.email);
-          container.innerHTML = `
+          document.getElementById("container").innerHTML = `
             <nav>
               <a href="index.html">🏠 Home</a>
               <a href="dashboard.html">📊 Dashboard</a>
@@ -196,34 +197,41 @@
             </h2>
             <button onclick="logout()">Logout</button>
           `;
-        } else {
-          container.innerHTML = `
-            <h2 style="text-align:center;">Login or Sign Up</h2>
-
-            <div class="input-group">
-              <input type="text" id="name" placeholder=" " />
-              <label for="name">Full Name</label>
-            </div>
-
-            <div class="input-group">
-              <input type="text" id="roll" placeholder=" " />
-              <label for="roll">Roll Number</label>
-            </div>
-
-            <div class="input-group">
-              <input type="email" id="email" placeholder=" " />
-              <label for="email">Email</label>
-            </div>
-            <div class="input-group">
-              <input type="password" id="password" placeholder=" " />
-              <label for="password">Password</label>
-            </div>
-
-            <button onclick="login()">Login</button>
-            <button onclick="signup()">Sign Up</button>
-          `;
         }
       });
+    };
+
+    function renderLoginForm() {
+      document.getElementById("container").innerHTML = `
+        <h2 style="text-align:center;">${isSignupMode ? "Sign Up" : "Login"}</h2>
+        ${isSignupMode ? `
+          <div class="input-group">
+            <input type="text" id="name" placeholder=" " />
+            <label for="name">Full Name</label>
+          </div>
+          <div class="input-group">
+            <input type="text" id="roll" placeholder=" " />
+            <label for="roll">Roll Number</label>
+          </div>
+        ` : ""}
+        <div class="input-group">
+          <input type="email" id="email" placeholder=" " />
+          <label for="email">Email</label>
+        </div>
+        <div class="input-group">
+          <input type="password" id="password" placeholder=" " />
+          <label for="password">Password</label>
+        </div>
+        <button onclick="${isSignupMode ? "signup()" : "login()"}">${isSignupMode ? "Sign Up" : "Login"}</button>
+        <button onclick="toggleForm()">
+          ${isSignupMode ? "Already have an account? Login" : "New user? Sign Up"}
+        </button>
+      `;
+    }
+
+    window.toggleForm = () => {
+      isSignupMode = !isSignupMode;
+      renderLoginForm();
     };
 
     window.login = async () => {
@@ -239,18 +247,23 @@
       const { createUserWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js");
       const { getFirestore, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js");
 
-      const name = document.getElementById("name").value;
-      const roll = document.getElementById("roll").value;
-      const email = document.getElementById("email").value;
+      const name = document.getElementById("name").value.trim();
+      const roll = document.getElementById("roll").value.trim();
+      const email = document.getElementById("email").value.trim();
       const pass = document.getElementById("password").value;
+
+      if (!name || !roll || !email || !pass) {
+        alert("Please fill all fields.");
+        return;
+      }
 
       createUserWithEmailAndPassword(auth, email, pass)
         .then(async (userCredential) => {
           const db = getFirestore(app);
           const user = userCredential.user;
           await setDoc(doc(db, "users", user.uid), {
-            name: name,
-            roll: roll,
+            name,
+            roll,
             email: user.email,
             createdAt: new Date().toISOString()
           });
