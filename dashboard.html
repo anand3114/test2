@@ -38,7 +38,7 @@
     }
 
     .card {
-      max-width: 600px;
+      max-width: 700px;
       background: var(--card);
       margin: auto;
       padding: 30px;
@@ -117,7 +117,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
@@ -143,22 +143,64 @@
 
         if (docSnap.exists()) {
           const data = docSnap.data();
-          const total = data.totalClasses || 0;
-          const present = data.totalPresent || 0;
-          const absent = data.totalAbsent || 0;
-          const percent = total > 0 ? ((present / total) * 100).toFixed(2) : 0;
 
-          // Build attendance dashboard
+          const subjects = data.subjects || {};
+          // Calculate totals over all subjects
+          let totalClasses = 0;
+          let totalPresent = 0;
+          let totalAbsent = 0;
+
+          // Build rows for each subject
+          let subjectRows = "";
+          for (const [subject, stats] of Object.entries(subjects)) {
+            const present = stats.totalPresent || 0;
+            const total = stats.totalClasses || 0;
+            const absent = total - present;
+            const percent = total > 0 ? ((present / total) * 100).toFixed(2) : "0.00";
+
+            totalClasses += total;
+            totalPresent += present;
+            totalAbsent += absent;
+
+            subjectRows += `
+              <tr>
+                <td>${subject}</td>
+                <td>${present}</td>
+                <td>${total}</td>
+                <td>${percent}%</td>
+              </tr>
+            `;
+          }
+
+          const overallPercent = totalClasses > 0 ? ((totalPresent / totalClasses) * 100).toFixed(2) : "0.00";
+
           container.innerHTML = `
             <div class="card">
               <h2>Welcome, ${user.email}</h2>
               <div class="stats">
-                <p><strong>Total Classes:</strong> ${total}</p>
-                <p><strong>Present:</strong> ${present}</p>
-                <p><strong>Absent:</strong> ${absent}</p>
-                <p><strong>Attendance %:</strong> ${percent}%</p>
+                <p><strong>Total Classes (All Subjects):</strong> ${totalClasses}</p>
+                <p><strong>Present (All Subjects):</strong> ${totalPresent}</p>
+                <p><strong>Absent (All Subjects):</strong> ${totalAbsent}</p>
+                <p><strong>Overall Attendance %:</strong> ${overallPercent}%</p>
               </div>
+
               <canvas id="attendanceChart"></canvas>
+
+              <h3>📊 Attendance Details by Subject</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Present</th>
+                    <th>Total Classes</th>
+                    <th>Percentage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${subjectRows || `<tr><td colspan="4">No subjects found.</td></tr>`}
+                </tbody>
+              </table>
+
               <h3>📅 Attendance History</h3>
               <table id="historyTable">
                 <thead>
@@ -169,6 +211,7 @@
             </div>
           `;
 
+          // Render pie chart with combined data
           const ctx = document.getElementById('attendanceChart').getContext('2d');
           new Chart(ctx, {
             type: 'pie',
@@ -176,7 +219,7 @@
               labels: ['Present', 'Absent'],
               datasets: [{
                 label: 'Attendance',
-                data: [present, absent],
+                data: [totalPresent, totalAbsent],
                 backgroundColor: ['#3f83f8', '#f87171'],
                 borderWidth: 1
               }]
@@ -194,7 +237,7 @@
             }
           });
 
-          // Fetch attendance history from subcollection
+          // Fetch attendance history subcollection (unchanged)
           const historyRef = collection(db, "attendance", uid, "history");
           const historySnap = await getDocs(query(historyRef, orderBy("timestamp", "desc")));
           const tbody = document.querySelector("#historyTable tbody");
@@ -202,9 +245,10 @@
           if (historySnap.empty) {
             tbody.innerHTML = `<tr><td colspan="2">No history found.</td></tr>`;
           } else {
+            tbody.innerHTML = ""; // Clear any placeholders
             historySnap.forEach(doc => {
               const record = doc.data();
-              const date = new Date(record.timestamp?.seconds * 1000).toLocaleDateString();
+              const date = record.timestamp ? new Date(record.timestamp.seconds * 1000).toLocaleDateString() : "Unknown";
               const status = record.status || "Present";
               tbody.innerHTML += `<tr><td>${date}</td><td>${status}</td></tr>`;
             });
