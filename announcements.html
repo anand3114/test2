@@ -47,6 +47,11 @@
       margin-right: 10px;
     }
 
+    .react-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .edit-btn {
       background: #1d4ed8;
       color: white;
@@ -100,18 +105,20 @@
 
       currentUser = user;
       const isAdmin = user.email === ADMIN_EMAIL;
-      loadAnnouncements(isAdmin);
+      await loadAnnouncements(isAdmin);
     });
 
     async function loadAnnouncements(isAdmin) {
       const q = query(collection(db, "announcements"), orderBy("date", "desc"));
       const snapshot = await getDocs(q);
+
       if (snapshot.empty) {
         container.innerHTML = "<p>No announcements available.</p>";
         return;
       }
 
       container.innerHTML = "";
+
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
         const id = docSnap.id;
@@ -127,21 +134,25 @@
         // Check if user has already reacted
         const userReactRef = doc(db, "users", currentUser.uid, "likes", id);
         const userReactDoc = await getDoc(userReactRef);
-        const reacted = userReactDoc.exists();
+        const hasReacted = userReactDoc.exists();
+
+        const reactionButtons = `
+          <button class="react-btn" ${hasReacted ? 'disabled' : ''} onclick="reactTo('${id}', 'like')">👍 ${reactions.like}</button>
+          <button class="react-btn" ${hasReacted ? 'disabled' : ''} onclick="reactTo('${id}', 'love')">❤️ ${reactions.love}</button>
+          <button class="react-btn" ${hasReacted ? 'disabled' : ''} onclick="reactTo('${id}', 'laugh')">😂 ${reactions.laugh}</button>
+          <button class="react-btn" ${hasReacted ? 'disabled' : ''} onclick="reactTo('${id}', 'wow')">😮 ${reactions.wow}</button>
+        `;
+
+        const editButton = isAdmin
+          ? `<button class="edit-btn" onclick="editAnnouncement('${id}')">Edit</button>`
+          : '';
 
         container.innerHTML += `
           <div class="announcement" id="ann-${id}">
             <h3>${data.title || "Untitled"}</h3>
             <small>${date}</small>
             <p>${data.content || ""}</p>
-
-            <div>
-              <button class="react-btn" ${reacted ? 'disabled' : ''} onclick="reactTo('${id}', 'like')">👍 ${reactions.like}</button>
-              <button class="react-btn" ${reacted ? 'disabled' : ''} onclick="reactTo('${id}', 'love')">❤️ ${reactions.love}</button>
-              <button class="react-btn" ${reacted ? 'disabled' : ''} onclick="reactTo('${id}', 'laugh')">😂 ${reactions.laugh}</button>
-              <button class="react-btn" ${reacted ? 'disabled' : ''} onclick="reactTo('${id}', 'wow')">😮 ${reactions.wow}</button>
-              ${isAdmin ? `<button class="edit-btn" onclick="editAnnouncement('${id}')">Edit</button>` : ""}
-            </div>
+            <div>${reactionButtons}${editButton}</div>
           </div>
         `;
       }
@@ -153,15 +164,14 @@
         [`reactions.${type}`]: increment(1)
       });
 
-      // store user reaction
       const likeRef = doc(db, "users", currentUser.uid, "likes", id);
-      await setDoc(likeRef, { reacted: true, type: type });
+      await setDoc(likeRef, { reacted: true, type });
 
       location.reload();
     };
 
     window.editAnnouncement = function (id) {
-      alert(`Admin edit feature coming soon for announcement: ${id}`);
+      alert(`Edit feature for announcement: ${id} (admin only).`);
     };
   </script>
 </head>
