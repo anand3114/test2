@@ -178,27 +178,40 @@
 
     window.onload = () => {
       renderLoginForm();
-      onAuthStateChanged(auth, (user) => {
-        if (user) {
-          const isAdmin = adminEmails.includes(user.email);
-          document.getElementById("container").innerHTML = `
-            <nav>
-              <a href="index.html">🏠 Home</a>
-              <a href="dashboard.html">📊 Dashboard</a>
-              <a href="mark-attendance.html">✅ Mark Attendance</a>
-              <a href="announcements.html">📢 Announcements</a>
-              ${isAdmin ? '<a href="admin.html">🛠️ Admin Panel</a>' : ''}
-            </nav>
-            <h2 style="text-align:center;">
-              Welcome, ${user.email}<br>
-              <span class="role-badge ${isAdmin ? '' : 'role-student'}">
-                ${isAdmin ? '🛡️ Admin' : '🎓 Student'}
-              </span>
-            </h2>
-            <button onclick="logout()">Logout</button>
-          `;
-        }
-      });
+     import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    const isAdmin = adminEmails.includes(user.email);
+    const db = getFirestore(app);
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+
+    let displayName = user.email;
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      displayName = `${userData.name} (${userData.roll})`;
+    }
+
+    document.getElementById("container").innerHTML = `
+      <nav>
+        <a href="index.html">🏠 Home</a>
+        <a href="dashboard.html">📊 Dashboard</a>
+        <a href="mark-attendance.html">✅ Mark Attendance</a>
+        <a href="announcements.html">📢 Announcements</a>
+        ${isAdmin ? '<a href="admin.html">🛠️ Admin Panel</a>' : ''}
+      </nav>
+      <h2 style="text-align:center;">
+        Welcome, ${displayName}<br>
+        <span class="role-badge ${isAdmin ? '' : 'role-student'}">
+          ${isAdmin ? '🛡️ Admin' : '🎓 Student'}
+        </span>
+      </h2>
+      <button onclick="logout()">Logout</button>
+    `;
+  }
+});
+
     };
 
     function renderLoginForm() {
