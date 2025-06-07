@@ -1,101 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>📢 Announcements</title>
+  <meta charset="UTF-8">
+  <title>📢 Latest Announcements</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f8f9fa;
+      margin: 0;
+      padding: 30px;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f0f9ff, #ecfeff);
+      color: #1e293b;
     }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2rem;
+    }
+
     .announcement {
-      background: #fff;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(0, 0, 0, 0.1);
       border-radius: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      padding: 16px;
-      margin-bottom: 16px;
-      position: relative;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+      backdrop-filter: blur(10px);
     }
+
     .announcement h3 {
       margin-top: 0;
+      color: #1d4ed8;
     }
-    .announcement .date {
-      font-size: 0.85em;
-      color: gray;
+
+    .announcement small {
+      color: #64748b;
     }
-    button {
-      background: #dc3545;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      position: absolute;
-      top: 12px;
-      right: 12px;
+
+    #announcement-list {
+      max-width: 700px;
+      margin: auto;
     }
   </style>
-</head>
-<body>
-  <h1>📢 Latest Announcements</h1>
-  <div id="announcements">Loading...</div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
       authDomain: "attendance311.firebaseapp.com",
       projectId: "attendance311",
-      storageBucket: "attendance311.firebasestorage.app",
+      storageBucket: "attendance311.appspot.com",
       messagingSenderId: "564903256212",
       appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
       measurementId: "G-NZEEX42J3P"
     };
 
-    const adminEmails = ["anand31145@gmail.com"]; // Add more admins if needed
-
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
-    const container = document.getElementById("announcements");
+    const container = document.getElementById("announcement-list");
 
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        container.innerHTML = `<p>Please <a href='index.html'>log in</a> to view announcements.</p>`;
-        return;
-      }
+    async function loadAnnouncements() {
+      try {
+        const q = query(collection(db, "announcements"), orderBy("date", "desc"));
+        const snapshot = await getDocs(q);
 
-      const isAdmin = adminEmails.includes(user.email);
-      const q = query(collection(db, "announcements"), orderBy("date", "desc"));
-      const snap = await getDocs(q);
+        if (snapshot.empty) {
+          container.innerHTML = "<p>No announcements available.</p>";
+          return;
+        }
 
-      if (snap.empty) {
-        container.innerHTML = "<p>No announcements yet.</p>";
-      } else {
-        container.innerHTML = snap.docs.map(docSnap => {
-          const data = docSnap.data();
-          const date = new Date(data.date).toLocaleString();
-          return `
+        container.innerHTML = "";
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const title = data.title || "Untitled";
+          const content = data.content || "";
+          const date = data.date?.toDate().toLocaleString() || "Unknown";
+
+          container.innerHTML += `
             <div class="announcement">
-              <h3>${data.title || "Untitled"} ${isAdmin ? "<small>(Admin)</small>" : ""}</h3>
-              <p>${data.content || ""}</p>
-              <div class="date">📅 ${date}</div>
-              ${isAdmin ? `<button onclick="deleteAnnouncement('${docSnap.id}')">🗑 Delete</button>` : ""}
+              <h3>${title}</h3>
+              <small>${date}</small>
+              <p>${content}</p>
             </div>
           `;
-        }).join('');
+        });
+      } catch (e) {
+        container.innerHTML = `<p style="color:red;">Error loading announcements: ${e.message}</p>`;
       }
-    });
+    }
 
-    window.deleteAnnouncement = async (id) => {
-      if (!confirm("Delete this announcement?")) return;
-      await deleteDoc(doc(db, "announcements", id));
-      alert("✅ Deleted successfully!");
-      location.reload();
-    };
+    loadAnnouncements();
   </script>
+</head>
+<body>
+  <h1>📢 Latest Announcements</h1>
+  <div id="announcement-list">Loading...</div>
 </body>
 </html>
