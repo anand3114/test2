@@ -233,14 +233,26 @@
       });
     };
 
-    window.login = async () => {
-      const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js");
-      const email = document.getElementById("email").value;
-      const pass = document.getElementById("password").value;
-      signInWithEmailAndPassword(auth, email, pass)
-        .then(() => location.reload())
-        .catch(e => alert(e.message));
-    };
+  window.signup = async () => {
+  const { createUserWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js");
+  const { getFirestore, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js");
+
+  const email = document.getElementById("email").value;
+  const pass = document.getElementById("password").value;
+
+  createUserWithEmailAndPassword(auth, email, pass)
+    .then(async (userCredential) => {
+      const db = getFirestore(app);
+      const user = userCredential.user;
+      await setDoc(doc(db, "users", user.uid), {
+        email: user.email,
+        createdAt: new Date().toISOString()
+      });
+      location.reload();
+    })
+    .catch(e => alert(e.message));
+};
+
 
     window.signup = async () => {
       const { createUserWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js");
