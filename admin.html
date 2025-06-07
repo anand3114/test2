@@ -83,8 +83,9 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs, setDoc, doc, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, doc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
+    // ✅ Replace with your Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyCUi0onRj7M8El8Iv1PgERpgpjzb5X0rCI",
       authDomain: "attendance311.firebaseapp.com",
@@ -98,11 +99,17 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    const adminEmails = ["anand31145@gmail.com"]; // ✅ Replace with your admin emails
+    // ✅ Add your admin email(s) here
+    const adminEmails = ["anand31145@gmail.com"];
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        window.location.href = "index.html";
+        // Wait to avoid premature redirect before user loads
+        setTimeout(() => {
+          if (!auth.currentUser) {
+            window.location.href = "index.html";
+          }
+        }, 1000);
         return;
       }
 
@@ -111,12 +118,13 @@
         return;
       }
 
+      // ✅ Admin verified — Load all student data
       try {
-        const snapshot = await getDocs(collection(db, "attendance"));
+        const attendanceSnapshot = await getDocs(collection(db, "attendance"));
         const tableBody = document.querySelector("#studentTable tbody");
         tableBody.innerHTML = "";
 
-        snapshot.forEach(async (docSnap) => {
+        for (const docSnap of attendanceSnapshot.docs) {
           const data = docSnap.data();
           const uid = docSnap.id;
 
@@ -132,14 +140,14 @@
             <td>${data.totalClasses || 0}</td>
           `;
           tableBody.appendChild(row);
-        });
+        }
       } catch (err) {
         console.error("Error fetching student data:", err);
         document.getElementById("error").textContent = "⚠️ Failed to load student data.";
       }
     });
 
-    // Post announcement
+    // ✅ Post announcement handler
     document.getElementById("postBtn").addEventListener("click", async () => {
       const text = document.getElementById("announcementInput").value.trim();
       if (!text) return alert("Write something before publishing.");
