@@ -2,41 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard</title>
   <style>
     body {
-      font-family: 'Inter', sans-serif;
-      padding: 30px;
-      background: #f4f6fc;
+      font-family: Arial, sans-serif;
+      background-color: #f1f3f9;
+      padding: 40px;
     }
-    h1 {
+    h2 {
       text-align: center;
-      margin-bottom: 30px;
     }
     table {
-      width: 100%;
+      margin: 20px auto;
       border-collapse: collapse;
-      background: #fff;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 1000px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
     }
     th, td {
-      padding: 12px;
-      border-bottom: 1px solid #ccc;
+      padding: 14px 18px;
       text-align: left;
+      border-bottom: 1px solid #ddd;
     }
     th {
-      background-color: #3f83f8;
+      background-color: #4285f4;
       color: white;
     }
     tr:hover {
-      background-color: #f1f1f1;
+      background-color: #f2f2f2;
     }
   </style>
+</head>
+<body>
+  <h2>Admin Dashboard - All Students</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Present</th>
+        <th>Absent</th>
+        <th>Total Classes</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      <!-- Data will appear here -->
+    </tbody>
+  </table>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
@@ -48,60 +65,43 @@
       measurementId: "G-NZEEX42J3P"
     };
 
-    const adminEmails = ["anand31145@gmail.com"];
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const adminEmails = ["anand31145@gmail.com"]; // ✅ Replace with your admin email(s)
 
-    const tableBody = document.getElementById("user-data");
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const tableBody = document.getElementById("tableBody");
 
     onAuthStateChanged(auth, async (user) => {
       if (!user || !adminEmails.includes(user.email)) {
-        alert("Access Denied. Admins only.");
+        alert("Access Denied. Only admins can view this page.");
         window.location.href = "index.html";
         return;
       }
 
-      const usersSnapshot = await getDocs(collection(db, "users"));
-      for (const userDoc of usersSnapshot.docs) {
-        const userData = userDoc.data();
-        const userId = userDoc.id;
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        for (const userDoc of usersSnap.docs) {
+          const userData = userDoc.data();
+          const userId = userDoc.id;
 
-        // Get attendance info from /attendance/{uid}
-        const attRef = doc(db, "attendance", userId);
-        const attSnap = await getDoc(attRef);
-        const attData = attSnap.exists() ? attSnap.data() : {
-          present: 0,
-          absent: 0,
-          total: 0
-        };
+          const attSnap = await getDoc(doc(db, "attendance", userId));
+          const att = attSnap.exists() ? attSnap.data() : { present: 0, absent: 0, total: 0 };
 
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${userData.email}</td>
-          <td>${attData.present}</td>
-          <td>${attData.absent}</td>
-          <td>${attData.total}</td>
-        `;
-        tableBody.appendChild(row);
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${userData.email}</td>
+            <td>${att.present || 0}</td>
+            <td>${att.absent || 0}</td>
+            <td>${att.total || 0}</td>
+          `;
+          tableBody.appendChild(row);
+        }
+      } catch (err) {
+        console.error("Error fetching admin data:", err);
+        alert("Failed to load data. Check console.");
       }
     });
   </script>
-</head>
-<body>
-  <h1>Admin Dashboard - All Students</h1>
-  <table>
-    <thead>
-      <tr>
-        <th>Email</th>
-        <th>Present</th>
-        <th>Absent</th>
-        <th>Total Classes</th>
-      </tr>
-    </thead>
-    <tbody id="user-data">
-      <!-- Populated dynamically -->
-    </tbody>
-  </table>
 </body>
 </html>
