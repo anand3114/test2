@@ -100,15 +100,27 @@
 
   const adminEmails = ["anand31145@gmail.com"]; // Replace if more admins
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      setTimeout(() => {
-        if (!auth.currentUser) {
-          window.location.href = "index.html";
-        }
-      }, 1000);
-      return;
-    }
+ onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    // Delay 1 second to give Firebase a chance to detect session
+    setTimeout(() => {
+      if (!auth.currentUser) {
+        window.location.href = "index.html";
+      }
+    }, 1000);
+    return;
+  }
+
+  // Confirm admin
+  if (!adminEmails.includes(user.email)) {
+    window.location.href = "dashboard.html";
+    return;
+  }
+
+  // Load data if verified admin
+  loadData();
+});
+
 
     if (!adminEmails.includes(user.email)) {
       window.location.href = "dashboard.html";
