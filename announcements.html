@@ -42,10 +42,9 @@
     .react-btn {
       background: none;
       border: none;
-      color: #2563eb;
       cursor: pointer;
-      font-size: 1rem;
-      margin-top: 10px;
+      font-size: 1.3rem;
+      margin-right: 10px;
     }
 
     .edit-btn {
@@ -66,8 +65,13 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, query, orderBy, updateDoc, doc, increment } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import {
+      getFirestore, collection, getDocs, query, orderBy,
+      updateDoc, doc, increment, getDoc, setDoc
+    } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import {
+      getAuth, onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
@@ -84,7 +88,8 @@
     const auth = getAuth(app);
     const container = document.getElementById("announcement-list");
 
-    const ADMIN_EMAIL = "admin@example.com"; // <-- Change to actual admin email
+    const ADMIN_EMAIL = "admin@example.com"; // change to actual admin email
+    let currentUser;
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -93,52 +98,70 @@
         return;
       }
 
+      currentUser = user;
       const isAdmin = user.email === ADMIN_EMAIL;
       loadAnnouncements(isAdmin);
     });
 
     async function loadAnnouncements(isAdmin) {
-      try {
-        const q = query(collection(db, "announcements"), orderBy("date", "desc"));
-        const snapshot = await getDocs(q);
+      const q = query(collection(db, "announcements"), orderBy("date", "desc"));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        container.innerHTML = "<p>No announcements available.</p>";
+        return;
+      }
 
-        if (snapshot.empty) {
-          container.innerHTML = "<p>No announcements available.</p>";
-          return;
-        }
+      container.innerHTML = "";
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        const id = docSnap.id;
+        const date = data.date?.toDate().toLocaleString() || "Unknown";
 
-        container.innerHTML = "";
-        snapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          const id = docSnap.id;
-          const title = data.title || "Untitled";
-          const content = data.content || "";
-          const date = data.date?.toDate().toLocaleString() || "Unknown";
-          const likes = data.likes || 0;
+        const reactions = {
+          like: data.reactions?.like || 0,
+          love: data.reactions?.love || 0,
+          laugh: data.reactions?.laugh || 0,
+          wow: data.reactions?.wow || 0
+        };
 
-          container.innerHTML += `
-            <div class="announcement" id="ann-${id}">
-              <h3>${title}</h3>
-              <small>${date}</small>
-              <p>${content}</p>
-              <button class="react-btn" onclick="likeAnnouncement('${id}')">👍 ${likes}</button>
+        // Check if user has already reacted
+        const userReactRef = doc(db, "users", currentUser.uid, "likes", id);
+        const userReactDoc = await getDoc(userReactRef);
+        const reacted = userReactDoc.exists();
+
+        container.innerHTML += `
+          <div class="announcement" id="ann-${id}">
+            <h3>${data.title || "Untitled"}</h3>
+            <small>${date}</small>
+            <p>${data.content || ""}</p>
+
+            <div>
+              <button class="react-btn" ${reacted ? 'disabled' : ''} onclick="reactTo('${id}', 'like')">👍 ${reactions.like}</button>
+              <button class="react-btn" ${reacted ? 'disabled' : ''} onclick="reactTo('${id}', 'love')">❤️ ${reactions.love}</button>
+              <button class="react-btn" ${reacted ? 'disabled' : ''} onclick="reactTo('${id}', 'laugh')">😂 ${reactions.laugh}</button>
+              <button class="react-btn" ${reacted ? 'disabled' : ''} onclick="reactTo('${id}', 'wow')">😮 ${reactions.wow}</button>
               ${isAdmin ? `<button class="edit-btn" onclick="editAnnouncement('${id}')">Edit</button>` : ""}
             </div>
-          `;
-        });
-      } catch (e) {
-        container.innerHTML = `<p style="color:red;">Error loading announcements: ${e.message}</p>`;
+          </div>
+        `;
       }
     }
 
-    window.likeAnnouncement = async function (id) {
-      const docRef = doc(db, "announcements", id);
-      await updateDoc(docRef, { likes: increment(1) });
-      document.location.reload();
+    window.reactTo = async function (id, type) {
+      const annRef = doc(db, "announcements", id);
+      await updateDoc(annRef, {
+        [`reactions.${type}`]: increment(1)
+      });
+
+      // store user reaction
+      const likeRef = doc(db, "users", currentUser.uid, "likes", id);
+      await setDoc(likeRef, { reacted: true, type: type });
+
+      location.reload();
     };
 
     window.editAnnouncement = function (id) {
-      alert(`Edit feature for announcement "${id}" can be added here.`);
+      alert(`Admin edit feature coming soon for announcement: ${id}`);
     };
   </script>
 </head>
