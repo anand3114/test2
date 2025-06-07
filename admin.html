@@ -81,85 +81,89 @@
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs, setDoc, doc, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+  import { getFirestore, collection, getDocs, addDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCUi0onRj7M8El8Iv1PgERpgpjzb5X0rCI",
-      authDomain: "attendance311.firebaseapp.com",
-      projectId: "attendance311",
-      storageBucket: "attendance311.appspot.com",
-      messagingSenderId: "120133746939",
-      appId: "1:120133746939:web:3794d01a14991e5c78f3d5"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyCUi0onRj7M8El8Iv1PgERpgpjzb5X0rCI",
+    authDomain: "attendance311.firebaseapp.com",
+    projectId: "attendance311",
+    storageBucket: "attendance311.appspot.com",
+    messagingSenderId: "120133746939",
+    appId: "1:120133746939:web:3794d01a14991e5c78f3d5"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
-    const adminEmails = ["anand31145@gmail.com"]; // ✅ Replace with your admin email(s)
+  const adminEmails = ["anand31145@gmail.com"]; // Replace if more admins
 
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        setTimeout(() => {
-          if (!auth.currentUser) {
-            window.location.href = "index.html"; // Not logged in
-          }
-        }, 1500);
-        return;
-      }
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      setTimeout(() => {
+        if (!auth.currentUser) {
+          window.location.href = "index.html";
+        }
+      }, 1000);
+      return;
+    }
 
-      if (!adminEmails.includes(user.email)) {
-        window.location.href = "dashboard.html"; // Not an admin
-        return;
-      }
+    if (!adminEmails.includes(user.email)) {
+      window.location.href = "dashboard.html";
+      return;
+    }
 
-      try {
-        const snapshot = await getDocs(collection(db, "attendance"));
-        const tableBody = document.querySelector("#studentTable tbody");
-        tableBody.innerHTML = "";
+    // ✅ Load admin data
+    loadData();
+  });
 
-        snapshot.forEach(async (docSnap) => {
-          const data = docSnap.data();
-          const uid = docSnap.id;
+  async function loadData() {
+    try {
+      const snapshot = await getDocs(collection(db, "attendance"));
+      const tableBody = document.querySelector("#studentTable tbody");
+      tableBody.innerHTML = "";
 
-          const userDoc = await getDoc(doc(db, "users", uid));
-          const userData = userDoc.exists() ? userDoc.data() : {};
+      snapshot.forEach(async (docSnap) => {
+        const data = docSnap.data();
+        const uid = docSnap.id;
 
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${userData.name || "N/A"}</td>
-            <td>${userData.email || "N/A"}</td>
-            <td>${data.totalPresent || 0}</td>
-            <td>${data.totalAbsent || 0}</td>
-            <td>${data.totalClasses || 0}</td>
-          `;
-          tableBody.appendChild(row);
-        });
-      } catch (err) {
-        console.error("Error fetching student data:", err);
-        document.getElementById("error").textContent = "⚠️ Failed to load student data.";
-      }
-    });
+        const userDoc = await getDoc(doc(db, "users", uid));
+        const userData = userDoc.exists() ? userDoc.data() : {};
 
-    // Post announcement
-    document.getElementById("postBtn").addEventListener("click", async () => {
-      const text = document.getElementById("announcementInput").value.trim();
-      if (!text) return alert("Write something before publishing.");
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${userData.name || "N/A"}</td>
+          <td>${userData.email || "N/A"}</td>
+          <td>${data.totalPresent || 0}</td>
+          <td>${data.totalAbsent || 0}</td>
+          <td>${data.totalClasses || 0}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    } catch (err) {
+      console.error("Error fetching student data:", err);
+      document.getElementById("error").textContent = "⚠️ Failed to load student data.";
+    }
+  }
 
-      try {
-        await addDoc(collection(db, "announcements"), {
-          text,
-          timestamp: new Date().toISOString()
-        });
-        alert("✅ Announcement published!");
-        document.getElementById("announcementInput").value = "";
-      } catch (err) {
-        console.error("Announcement error:", err);
-        alert("⚠️ Failed to post announcement.");
-      }
-    });
-  </script>
-</body>
-</html>
+  // Announcement logic
+  document.getElementById("postBtn").addEventListener("click", async () => {
+    const text = document.getElementById("announcementInput").value.trim();
+    if (!text) return alert("Write something before publishing.");
+
+    try {
+      await addDoc(collection(db, "announcements"), {
+        text,
+        timestamp: new Date().toISOString()
+      });
+      alert("✅ Announcement published!");
+      document.getElementById("announcementInput").value = "";
+    } catch (err) {
+      console.error("Announcement error:", err);
+      alert("⚠️ Failed to post announcement.");
+    }
+  });
+</script>
+
