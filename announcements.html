@@ -1,11 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin - Post Announcements</title>
+  <title>📢 Announcements</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f8f9fa;
+    }
+    .announcement {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 16px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .announcement h3 {
+      margin-top: 0;
+    }
+    .announcement .date {
+      font-size: 0.85em;
+      color: gray;
+    }
+    button {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      position: absolute;
+      top: 12px;
+      right: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📢 Latest Announcements</h1>
+  <div id="announcements">Loading...</div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
@@ -17,35 +55,47 @@
       measurementId: "G-NZEEX42J3P"
     };
 
+    const adminEmails = ["anand31145@gmail.com"]; // Add more admins if needed
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-
-    const adminEmails = ["anand31145@gmail.com"]; // ✅ Add your email(s) here
+    const container = document.getElementById("announcements");
 
     onAuthStateChanged(auth, async (user) => {
-      if (user && adminEmails.includes(user.email)) {
-        document.getElementById("post").onclick = async () => {
-          const title = document.getElementById("title").value;
-          const content = document.getElementById("content").value;
-          await addDoc(collection(db, "announcements"), {
-            title,
-            content,
-            date: new Date().toISOString()
-          });
-          alert("✅ Announcement posted!");
-        };
+      if (!user) {
+        container.innerHTML = `<p>Please <a href='index.html'>log in</a> to view announcements.</p>`;
+        return;
+      }
+
+      const isAdmin = adminEmails.includes(user.email);
+      const q = query(collection(db, "announcements"), orderBy("date", "desc"));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        container.innerHTML = "<p>No announcements yet.</p>";
       } else {
-        alert("Not authorized");
-        window.location.href = "login.html";
+        container.innerHTML = snap.docs.map(docSnap => {
+          const data = docSnap.data();
+          const date = new Date(data.date).toLocaleString();
+          return `
+            <div class="announcement">
+              <h3>${data.title || "Untitled"} ${isAdmin ? "<small>(Admin)</small>" : ""}</h3>
+              <p>${data.content || ""}</p>
+              <div class="date">📅 ${date}</div>
+              ${isAdmin ? `<button onclick="deleteAnnouncement('${docSnap.id}')">🗑 Delete</button>` : ""}
+            </div>
+          `;
+        }).join('');
       }
     });
+
+    window.deleteAnnouncement = async (id) => {
+      if (!confirm("Delete this announcement?")) return;
+      await deleteDoc(doc(db, "announcements", id));
+      alert("✅ Deleted successfully!");
+      location.reload();
+    };
   </script>
-</head>
-<body>
-  <h2>Admin - Post New Announcement</h2>
-  <input type="text" id="title" placeholder="Title"><br>
-  <textarea id="content" placeholder="Announcement content"></textarea><br>
-  <button id="post">Post Announcement</button>
 </body>
 </html>
