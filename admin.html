@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Dashboard - Attendance</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <title>Admin - Post Announcements & View Attendance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
   <style>
     :root {
       --bg: #f4f6fc;
@@ -23,7 +24,7 @@
       background-color: var(--bg);
       color: var(--text);
       transition: all 0.3s ease-in-out;
-      padding: 20px;
+      padding: 30px 20px;
     }
 
     body.dark-mode {
@@ -31,37 +32,70 @@
       color: var(--text-dark);
     }
 
-    h1 {
+    h2 {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 25px;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: var(--card);
+    .card {
+      max-width: 900px;
+      margin: auto;
+      background-color: var(--card);
+      padding: 30px;
       border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      transition: background 0.3s;
     }
 
-    body.dark-mode table {
-      background: var(--card-dark);
+    body.dark-mode .card {
+      background-color: var(--card-dark);
     }
 
-    th, td {
-      padding: 16px;
-      text-align: center;
-      border-bottom: 1px solid #ddd;
+    input, textarea {
+      width: 100%;
+      margin: 12px 0;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: border 0.2s;
     }
 
-    thead {
-      background: var(--accent);
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 5px var(--accent);
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    button {
+      width: 100%;
+      background-color: var(--accent);
       color: white;
+      border: none;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s;
     }
 
-    body.dark-mode thead {
-      background: var(--accent-dark);
+    button:hover {
+      background-color: var(--accent-dark);
+    }
+
+    .success {
+      text-align: center;
+      color: green;
+      margin-top: 20px;
+      font-weight: 600;
     }
 
     .toggle-mode {
@@ -83,26 +117,42 @@
       background: var(--accent-dark);
     }
 
-    @media (max-width: 600px) {
-      table, thead, tbody, th, td, tr {
-        display: block;
-      }
-
-      th {
-        text-align: left;
-      }
-
-      td {
-        border-bottom: 1px solid #444;
-        padding: 10px;
-        text-align: left;
-      }
+    table {
+      width: 100%;
+      border-collapse: collapse;
     }
+
+    th, td {
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #e9eefc;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    body.dark-mode table {
+      color: var(--text-dark);
+    }
+
+    body.dark-mode th {
+      background-color: #3a3f5a;
+    }
+
+    body.dark-mode tr:nth-child(even) {
+      background-color: #2d2f45;
+    }
+
   </style>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
@@ -115,50 +165,101 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
 
-    window.addEventListener("DOMContentLoaded", async () => {
-      const tableBody = document.querySelector("tbody");
-      const snapshot = await getDocs(collection(db, "attendance"));
+    const adminEmails = ["anand31145@gmail.com"]; // Add more admin emails if needed
 
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const name = data.name || "Unnamed";
-        const present = data.totalPresent || 0;
-        const classes = data.totalClasses || 0;
-        const absent = data.totalAbsent || (classes - present);
+    onAuthStateChanged(auth, async (user) => {
+      if (user && adminEmails.includes(user.email)) {
+        // Post Announcement
+        document.getElementById("post").onclick = async () => {
+          const title = document.getElementById("title").value.trim();
+          const content = document.getElementById("content").value.trim();
+          const success = document.getElementById("success");
 
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${name}</td>
-          <td>${present}</td>
-          <td>${absent}</td>
-          <td>${classes}</td>
-        `;
-        tableBody.appendChild(row);
-      });
+          if (!title || !content) {
+            alert("Please fill in both fields.");
+            return;
+          }
+
+          await addDoc(collection(db, "announcements"), {
+            title,
+            content,
+            date: serverTimestamp()
+          });
+
+          success.textContent = "✅ Announcement posted successfully!";
+          document.getElementById("title").value = "";
+          document.getElementById("content").value = "";
+        };
+
+        // Load Attendance Dashboard
+        loadAttendanceDashboard();
+      } else {
+        alert("❌ Not authorized");
+        window.location.href = "index.html";
+      }
     });
 
     window.toggleMode = () => {
       document.body.classList.toggle("dark-mode");
     };
+
+    async function loadAttendanceDashboard() {
+      const container = document.getElementById("attendance-list");
+      container.innerHTML = "<p>Loading attendance records...</p>";
+
+      try {
+        const snapshot = await getDocs(collection(db, "attendance"));
+        if (snapshot.empty) {
+          container.innerHTML = "<p>No attendance data found.</p>";
+          return;
+        }
+
+        let html = "<table><thead><tr><th>👤 Student ID</th><th>Total Classes</th><th>Present</th><th>Absent</th><th>Attendance %</th></tr></thead><tbody>";
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const id = doc.id;
+          const present = data.totalPresent || 0;
+          const absent = data.totalAbsent || 0;
+          const total = data.totalClasses || 0;
+          const percent = total > 0 ? ((present / total) * 100).toFixed(2) : "0.00";
+
+          html += `<tr>
+                    <td>${id}</td>
+                    <td>${total}</td>
+                    <td>${present}</td>
+                    <td>${absent}</td>
+                    <td>${percent}%</td>
+                  </tr>`;
+        });
+
+        html += "</tbody></table>";
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = `<p style="color:red;">Error loading attendance: ${err.message}</p>`;
+        console.error("Error fetching attendance:", err);
+      }
+    }
   </script>
 </head>
+
 <body>
   <button class="toggle-mode" onclick="toggleMode()">🌗</button>
-  <h1>Attendance Dashboard</h1>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Present</th>
-        <th>Absent</th>
-        <th>Total Classes</th>
-      </tr>
-    </thead>
-    <tbody>
-      <!-- Dynamic rows will appear here -->
-    </tbody>
-  </table>
+
+  <h2>📝 Admin - Post New Announcement</h2>
+  <div class="card">
+    <input type="text" id="title" placeholder="Enter Title" />
+    <textarea id="content" placeholder="Write your announcement..."></textarea>
+    <button id="post">📢 Post Announcement</button>
+    <div id="success" class="success"></div>
+  </div>
+
+  <h2 style="margin-top: 60px;">📊 Student Attendance Dashboard</h2>
+  <div id="attendance-list" class="card">
+    <p>Loading attendance records...</p>
+  </div>
 </body>
 </html>
