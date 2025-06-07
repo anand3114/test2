@@ -39,6 +39,25 @@
       color: #64748b;
     }
 
+    .react-btn {
+      background: none;
+      border: none;
+      color: #2563eb;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 10px;
+    }
+
+    .edit-btn {
+      background: #1d4ed8;
+      color: white;
+      padding: 4px 10px;
+      border: none;
+      border-radius: 4px;
+      margin-left: 10px;
+      cursor: pointer;
+    }
+
     #announcement-list {
       max-width: 700px;
       margin: auto;
@@ -47,7 +66,8 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, query, orderBy, updateDoc, doc, increment } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
@@ -61,9 +81,23 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
     const container = document.getElementById("announcement-list");
 
-    async function loadAnnouncements() {
+    const ADMIN_EMAIL = "admin@example.com"; // <-- Replace with your admin email
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("Please log in first.");
+        window.location.href = "index.html";
+        return;
+      }
+
+      const isAdmin = user.email === ADMIN_EMAIL;
+      loadAnnouncements(isAdmin);
+    });
+
+    async function loadAnnouncements(isAdmin) {
       try {
         const q = query(collection(db, "announcements"), orderBy("date", "desc"));
         const snapshot = await getDocs(q);
@@ -74,17 +108,21 @@
         }
 
         container.innerHTML = "";
-        snapshot.forEach(doc => {
-          const data = doc.data();
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const id = docSnap.id;
           const title = data.title || "Untitled";
           const content = data.content || "";
           const date = data.date?.toDate().toLocaleString() || "Unknown";
+          const likes = data.likes || 0;
 
           container.innerHTML += `
-            <div class="announcement">
+            <div class="announcement" id="ann-${id}">
               <h3>${title}</h3>
               <small>${date}</small>
               <p>${content}</p>
+              <button class="react-btn" onclick="likeAnnouncement('${id}')">👍 ${likes}</button>
+              ${isAdmin ? `<button class="edit-btn" onclick="editAnnouncement('${id}')">Edit</button>` : ""}
             </div>
           `;
         });
@@ -93,7 +131,16 @@
       }
     }
 
-    loadAnnouncements();
+    window.likeAnnouncement = async function (id) {
+      const docRef = doc(db, "announcements", id);
+      await updateDoc(docRef, { likes: increment(1) });
+      document.location.reload();
+    };
+
+    window.editAnnouncement = function (id) {
+      alert(`Edit functionality for announcement ID "${id}" goes here.`);
+      // You can implement a modal or redirect to an edit page here
+    };
   </script>
 </head>
 <body>
