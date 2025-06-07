@@ -84,7 +84,7 @@
     const auth = getAuth(app);
     const container = document.getElementById("announcement-list");
 
-    const ADMIN_EMAIL = "admin@example.com"; // <-- Replace with your admin email
+    const ADMIN_EMAIL = "admin@example.com"; // <-- Change to actual admin email
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -138,8 +138,7 @@
     };
 
     window.editAnnouncement = function (id) {
-      alert(`Edit functionality for announcement ID "${id}" goes here.`);
-      // You can implement a modal or redirect to an edit page here
+      alert(`Edit feature for announcement "${id}" can be added here.`);
     };
   </script>
 </head>
