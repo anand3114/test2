@@ -4,218 +4,273 @@
   <meta charset="UTF-8" />
   <title>Student Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
       --bg: #f4f6fc;
+      --bg-dark: #1e1e2f;
       --text: #1c1c1c;
-      --card: #fff;
+      --text-dark: #f5f5f5;
+      --card: #ffffff;
+      --card-dark: #2a2a3c;
       --accent: #3f83f8;
       --accent-dark: #2b66d1;
     }
+
     body {
+      margin: 0;
       font-family: 'Inter', sans-serif;
-      margin: 0; padding: 30px 20px;
-      background: var(--bg);
+      background-color: var(--bg);
       color: var(--text);
+      transition: all 0.3s ease-in-out;
+      padding: 30px 20px;
     }
+
+    body.dark-mode {
+      background-color: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
     .card {
-      max-width: 600px;
+      max-width: 700px;
       background: var(--card);
       margin: auto;
       padding: 30px;
       border-radius: 16px;
       box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      transition: background 0.3s ease;
+      animation: fadeInUp 0.6s ease;
       text-align: center;
     }
-    button#viewMoreBtn {
-      margin-top: 20px;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
+
+    body.dark-mode .card {
+      background: var(--card-dark);
+    }
+
+    .stats {
+      font-size: 1rem;
+      margin: 20px 0;
+      line-height: 1.8;
+    }
+
+    canvas {
+      max-width: 300px;
+      margin: 20px auto;
+    }
+
+    .toggle-mode {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 12px;
       background: var(--accent);
       color: white;
-      font-weight: 600;
+      border: none;
+      border-radius: 50%;
+      font-size: 18px;
       cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      transition: background 0.3s ease;
     }
-    #subjectCharts {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      justify-content: center;
-      margin-top: 20px;
+
+    .toggle-mode:hover {
+      background: var(--accent-dark);
     }
-    .subjectDiv {
-      width: 200px;
-      background: #fff;
-      padding: 15px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 25px;
+    }
+
+    table th, table td {
+      padding: 10px;
       text-align: center;
+      border: 1px solid #ccc;
+    }
+
+    body.dark-mode table {
+      color: var(--text-dark);
+    }
+
+    body.dark-mode table th, body.dark-mode table td {
+      border-color: #444;
+    }
+
+    table th {
+      background-color: var(--accent);
+      color: white;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
-</head>
-<body>
-  <h1>Your Attendance Dashboard</h1>
-  <div id="dashboard">Loading...</div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
-  authDomain: "attendance311.firebaseapp.com",
-  projectId: "attendance311",
-  storageBucket: "attendance311.firebasestorage.app",
-  messagingSenderId: "564903256212",
-  appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
-  measurementId: "G-NZEEX42J3P"
-};
+    const firebaseConfig = {
+      apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
+      authDomain: "attendance311.firebaseapp.com",
+      projectId: "attendance311",
+      storageBucket: "attendance311.firebasestorage.app",
+      messagingSenderId: "564903256212",
+      appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
+      measurementId: "G-NZEEX42J3P"
+    };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-const container = document.getElementById("dashboard");
+    const container = document.getElementById("dashboard");
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    alert("Please log in first.");
-    window.location.href = "index.html";
-    return;
-  }
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const uid = user.uid;
+        const docRef = doc(db, "attendance", uid);
+        const docSnap = await getDoc(docRef);
 
-  const uid = user.uid;
+        if (docSnap.exists()) {
+          const data = docSnap.data();
 
-  try {
-    const docRef = doc(db, "attendance", uid);
-    const docSnap = await getDoc(docRef);
+          const subjects = data.subjects || {};
+          // Calculate totals over all subjects
+          let totalClasses = 0;
+          let totalPresent = 0;
+          let totalAbsent = 0;
 
-    if (!docSnap.exists()) {
-      container.innerHTML = `<div class="card"><p>No attendance record found.</p></div>`;
-      return;
-    }
+          // Build rows for each subject
+          let subjectRows = "";
+          for (const [subject, stats] of Object.entries(subjects)) {
+            const present = stats.totalPresent || 0;
+            const total = stats.totalClasses || 0;
+            const absent = total - present;
+            const percent = total > 0 ? ((present / total) * 100).toFixed(2) : "0.00";
 
-    const data = docSnap.data();
-    const total = data.totalClasses || 0;
-    const present = data.totalPresent || 0;
-    const absent = data.totalAbsent || 0;
-    const percent = total > 0 ? ((present / total) * 100).toFixed(2) : 0;
+            totalClasses += total;
+            totalPresent += present;
+            totalAbsent += absent;
 
-    container.innerHTML = `
-      <div class="card">
-        <h2>Welcome, ${user.email}</h2>
-        <p><strong>Total Classes:</strong> ${total}</p>
-        <p><strong>Present:</strong> ${present}</p>
-        <p><strong>Absent:</strong> ${absent}</p>
-        <p><strong>Attendance %:</strong> ${percent}%</p>
-        <canvas id="attendanceChart" style="max-width: 300px; margin: 0 auto;"></canvas>
-        <button id="viewMoreBtn">View More</button>
-        <div id="subjectDetails" style="display:none;">
-          <h3>Attendance by Subject</h3>
-          <div id="subjectCharts"></div>
-        </div>
-      </div>
-    `;
-
-    // Draw overall attendance chart
-    const ctx = document.getElementById('attendanceChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'pie',
-      data: {
-        labels: ['Present', 'Absent'],
-        datasets: [{
-          data: [present, absent],
-          backgroundColor: ['#3f83f8', '#f87171']
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'bottom' }
-        }
-      }
-    });
-
-    const viewMoreBtn = document.getElementById('viewMoreBtn');
-    const subjectDetails = document.getElementById('subjectDetails');
-    const subjectCharts = document.getElementById('subjectCharts');
-
-    let subjectsLoaded = false;
-
-    viewMoreBtn.addEventListener('click', async () => {
-      if (subjectDetails.style.display === 'none') {
-        subjectDetails.style.display = 'block';
-        viewMoreBtn.textContent = 'Hide Details';
-
-        if (!subjectsLoaded) {
-          subjectCharts.innerHTML = 'Loading subjects...';
-          try {
-            const subjectsRef = collection(db, "attendance", uid, "subjects");
-            const subjectsSnap = await getDocs(subjectsRef);
-
-            if (subjectsSnap.empty) {
-              subjectCharts.innerHTML = '<p>No subject-wise attendance data found.</p>';
-            } else {
-              subjectCharts.innerHTML = ''; // Clear previous
-
-              subjectsSnap.forEach(doc => {
-                const subjectData = doc.data();
-                const subjectName = doc.id;
-                const totalClasses = subjectData.totalClasses || 0;
-                const present = subjectData.present || 0;
-                const absent = totalClasses - present;
-
-                // Create subject card div
-                const subjectDiv = document.createElement('div');
-                subjectDiv.className = 'subjectDiv';
-                subjectDiv.innerHTML = `
-                  <h4>${subjectName}</h4>
-                  <canvas id="chart-${subjectName}" width="150" height="150"></canvas>
-                  <p><strong>Total:</strong> ${totalClasses}<br><strong>Present:</strong> ${present}<br><strong>Absent:</strong> ${absent}</p>
-                `;
-
-                subjectCharts.appendChild(subjectDiv);
-
-                // Draw chart for subject
-                const ctxSub = subjectDiv.querySelector('canvas').getContext('2d');
-                new Chart(ctxSub, {
-                  type: 'pie',
-                  data: {
-                    labels: ['Present', 'Absent'],
-                    datasets: [{
-                      data: [present, absent],
-                      backgroundColor: ['#3f83f8', '#f87171']
-                    }]
-                  },
-                  options: {
-                    responsive: false,
-                    plugins: {
-                      legend: { position: 'bottom' }
-                    }
-                  }
-                });
-              });
-            }
-          } catch (err) {
-            console.error('Error loading subjects:', err);
-            subjectCharts.innerHTML = '<p>Error loading subjects.</p>';
+            subjectRows += `
+              <tr>
+                <td>${subject}</td>
+                <td>${present}</td>
+                <td>${total}</td>
+                <td>${percent}%</td>
+              </tr>
+            `;
           }
-          subjectsLoaded = true;
+
+          const overallPercent = totalClasses > 0 ? ((totalPresent / totalClasses) * 100).toFixed(2) : "0.00";
+
+          container.innerHTML = `
+            <div class="card">
+              <h2>Welcome, ${user.email}</h2>
+              <div class="stats">
+                <p><strong>Total Classes (All Subjects):</strong> ${totalClasses}</p>
+                <p><strong>Present (All Subjects):</strong> ${totalPresent}</p>
+                <p><strong>Absent (All Subjects):</strong> ${totalAbsent}</p>
+                <p><strong>Overall Attendance %:</strong> ${overallPercent}%</p>
+              </div>
+
+              <canvas id="attendanceChart"></canvas>
+
+              <h3>📊 Attendance Details by Subject</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Present</th>
+                    <th>Total Classes</th>
+                    <th>Percentage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${subjectRows || `<tr><td colspan="4">No subjects found.</td></tr>`}
+                </tbody>
+              </table>
+
+              <h3>📅 Attendance History</h3>
+              <table id="historyTable">
+                <thead>
+                  <tr><th>Date</th><th>Status</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          `;
+
+          // Render pie chart with combined data
+          const ctx = document.getElementById('attendanceChart').getContext('2d');
+          new Chart(ctx, {
+            type: 'pie',
+            data: {
+              labels: ['Present', 'Absent'],
+              datasets: [{
+                label: 'Attendance',
+                data: [totalPresent, totalAbsent],
+                backgroundColor: ['#3f83f8', '#f87171'],
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: {
+                    color: document.body.classList.contains('dark-mode') ? '#f5f5f5' : '#1c1c1c'
+                  }
+                }
+              }
+            }
+          });
+
+          // Fetch attendance history subcollection (unchanged)
+          const historyRef = collection(db, "attendance", uid, "history");
+          const historySnap = await getDocs(query(historyRef, orderBy("timestamp", "desc")));
+          const tbody = document.querySelector("#historyTable tbody");
+
+          if (historySnap.empty) {
+            tbody.innerHTML = `<tr><td colspan="2">No history found.</td></tr>`;
+          } else {
+            tbody.innerHTML = ""; // Clear any placeholders
+            historySnap.forEach(doc => {
+              const record = doc.data();
+              const date = record.timestamp ? new Date(record.timestamp.seconds * 1000).toLocaleDateString() : "Unknown";
+              const status = record.status || "Present";
+              tbody.innerHTML += `<tr><td>${date}</td><td>${status}</td></tr>`;
+            });
+          }
+
+        } else {
+          container.innerHTML = `<div class="card"><p>No attendance record found.</p></div>`;
         }
       } else {
-        subjectDetails.style.display = 'none';
-        viewMoreBtn.textContent = 'View More';
+        alert("Please log in first.");
+        window.location.href = "index.html";
       }
     });
 
-  } catch (error) {
-    console.error("Error fetching attendance data:", error);
-    container.innerHTML = `<div class="card"><p>Error loading attendance data.</p></div>`;
-  }
-});
-</script>
+    window.toggleMode = () => {
+      document.body.classList.toggle('dark-mode');
+    };
+  </script>
+</head>
+<body>
+  <button class="toggle-mode" onclick="toggleMode()">🌗</button>
+  <h1>Your Attendance Dashboard</h1>
+  <div id="dashboard"></div>
 </body>
 </html>
