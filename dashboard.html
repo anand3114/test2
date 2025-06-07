@@ -114,59 +114,115 @@
     }
   </style>
 
- <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-  import {
-    getFirestore,
-    collection,
-    getDocs,
-    doc,
-    getDoc
-  } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
-    authDomain: "attendance311.firebaseapp.com",
-    projectId: "attendance311",
-    storageBucket: "attendance311.appspot.com",
-    messagingSenderId: "564903256212",
-    appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
-    measurementId: "G-NZEEX42J3P"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
+      authDomain: "attendance311.firebaseapp.com",
+      projectId: "attendance311",
+      storageBucket: "attendance311.firebasestorage.app",
+      messagingSenderId: "564903256212",
+      appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
+      measurementId: "G-NZEEX42J3P"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-  async function loadAttendanceWithNames() {
-    const attendanceSnapshot = await getDocs(collection(db, "attendance"));
-    const table = document.getElementById("attendance-table");
+    const container = document.getElementById("dashboard");
 
-    for (const docSnap of attendanceSnapshot.docs) {
-      const uid = docSnap.id;
-      const data = docSnap.data();
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const uid = user.uid;
+        const docRef = doc(db, "attendance", uid);
+        const docSnap = await getDoc(docRef);
 
-      // Fetch user name from users collection
-      const userDoc = await getDoc(doc(db, "users", uid));
-      const userData = userDoc.exists() ? userDoc.data() : {};
-      const name = userData.name || "Unknown";
-      const roll = userData.roll || "-";
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const total = data.totalClasses || 0;
+          const present = data.totalPresent || 0;
+          const absent = data.totalAbsent || 0;
+          const percent = total > 0 ? ((present / total) * 100).toFixed(2) : 0;
 
-      // Create a row
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${name}</td>
-        <td>${roll}</td>
-        <td>${uid}</td>
-        <td>${data.date || "-"}</td>
-        <td>${data.status || "Present"}</td>
-      `;
-      table.appendChild(row);
-    }
-  }
+          // Build attendance dashboard
+          container.innerHTML = `
+            <div class="card">
+              <h2>Welcome, ${user.email}</h2>
+              <div class="stats">
+                <p><strong>Total Classes:</strong> ${total}</p>
+                <p><strong>Present:</strong> ${present}</p>
+                <p><strong>Absent:</strong> ${absent}</p>
+                <p><strong>Attendance %:</strong> ${percent}%</p>
+              </div>
+              <canvas id="attendanceChart"></canvas>
+              <h3>📅 Attendance History</h3>
+              <table id="historyTable">
+                <thead>
+                  <tr><th>Date</th><th>Status</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          `;
 
-  loadAttendanceWithNames();
-</script>
+          const ctx = document.getElementById('attendanceChart').getContext('2d');
+          new Chart(ctx, {
+            type: 'pie',
+            data: {
+              labels: ['Present', 'Absent'],
+              datasets: [{
+                label: 'Attendance',
+                data: [present, absent],
+                backgroundColor: ['#3f83f8', '#f87171'],
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: {
+                    color: document.body.classList.contains('dark-mode') ? '#f5f5f5' : '#1c1c1c'
+                  }
+                }
+              }
+            }
+          });
 
+          // Fetch attendance history from subcollection
+          const historyRef = collection(db, "attendance", uid, "history");
+          const historySnap = await getDocs(query(historyRef, orderBy("timestamp", "desc")));
+          const tbody = document.querySelector("#historyTable tbody");
+
+          if (historySnap.empty) {
+            tbody.innerHTML = `<tr><td colspan="2">No history found.</td></tr>`;
+          } else {
+            historySnap.forEach(doc => {
+              const record = doc.data();
+              const date = new Date(record.timestamp?.seconds * 1000).toLocaleDateString();
+              const status = record.status || "Present";
+              tbody.innerHTML += `<tr><td>${date}</td><td>${status}</td></tr>`;
+            });
+          }
+
+        } else {
+          container.innerHTML = `<div class="card"><p>No attendance record found.</p></div>`;
+        }
+      } else {
+        alert("Please log in first.");
+        window.location.href = "index.html";
+      }
+    });
+
+    window.toggleMode = () => {
+      document.body.classList.toggle('dark-mode');
+    };
+  </script>
 </head>
 <body>
   <button class="toggle-mode" onclick="toggleMode()">🌗</button>
