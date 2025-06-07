@@ -38,7 +38,7 @@
     }
 
     .card {
-      max-width: 700px;
+      max-width: 600px;
       background: var(--card);
       margin: auto;
       padding: 30px;
@@ -108,6 +108,32 @@
       color: white;
     }
 
+    #subjectDetails {
+      max-width: 600px;
+      margin: 30px auto;
+      text-align: center;
+    }
+
+    #subjectCharts {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .subject-chart-card {
+      width: 200px;
+      background: var(--card);
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transition: background 0.3s ease;
+    }
+
+    body.dark-mode .subject-chart-card {
+      background: var(--card-dark);
+    }
+
     @keyframes fadeInUp {
       from { opacity: 0; transform: translateY(30px); }
       to { opacity: 1; transform: translateY(0); }
@@ -143,64 +169,22 @@
 
         if (docSnap.exists()) {
           const data = docSnap.data();
+          const total = data.totalClasses || 0;
+          const present = data.totalPresent || 0;
+          const absent = data.totalAbsent || 0;
+          const percent = total > 0 ? ((present / total) * 100).toFixed(2) : 0;
 
-          const subjects = data.subjects || {};
-          // Calculate totals over all subjects
-          let totalClasses = 0;
-          let totalPresent = 0;
-          let totalAbsent = 0;
-
-          // Build rows for each subject
-          let subjectRows = "";
-          for (const [subject, stats] of Object.entries(subjects)) {
-            const present = stats.totalPresent || 0;
-            const total = stats.totalClasses || 0;
-            const absent = total - present;
-            const percent = total > 0 ? ((present / total) * 100).toFixed(2) : "0.00";
-
-            totalClasses += total;
-            totalPresent += present;
-            totalAbsent += absent;
-
-            subjectRows += `
-              <tr>
-                <td>${subject}</td>
-                <td>${present}</td>
-                <td>${total}</td>
-                <td>${percent}%</td>
-              </tr>
-            `;
-          }
-
-          const overallPercent = totalClasses > 0 ? ((totalPresent / totalClasses) * 100).toFixed(2) : "0.00";
-
+          // Main dashboard HTML
           container.innerHTML = `
             <div class="card">
               <h2>Welcome, ${user.email}</h2>
               <div class="stats">
-                <p><strong>Total Classes (All Subjects):</strong> ${totalClasses}</p>
-                <p><strong>Present (All Subjects):</strong> ${totalPresent}</p>
-                <p><strong>Absent (All Subjects):</strong> ${totalAbsent}</p>
-                <p><strong>Overall Attendance %:</strong> ${overallPercent}%</p>
+                <p><strong>Total Classes:</strong> ${total}</p>
+                <p><strong>Present:</strong> ${present}</p>
+                <p><strong>Absent:</strong> ${absent}</p>
+                <p><strong>Attendance %:</strong> ${percent}%</p>
               </div>
-
               <canvas id="attendanceChart"></canvas>
-
-              <h3>📊 Attendance Details by Subject</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Subject</th>
-                    <th>Present</th>
-                    <th>Total Classes</th>
-                    <th>Percentage</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${subjectRows || `<tr><td colspan="4">No subjects found.</td></tr>`}
-                </tbody>
-              </table>
-
               <h3>📅 Attendance History</h3>
               <table id="historyTable">
                 <thead>
@@ -208,10 +192,24 @@
                 </thead>
                 <tbody></tbody>
               </table>
+              <button id="viewMoreBtn" style="
+                background: var(--accent);
+                color: white;
+                border: none;
+                padding: 10px 15px;
+                border-radius: 8px;
+                cursor: pointer;
+                margin-top: 20px;
+                font-weight: 600;
+              ">View More</button>
+              <div id="subjectDetails" style="display:none;">
+                <h3>Attendance by Subject</h3>
+                <div id="subjectCharts"></div>
+              </div>
             </div>
           `;
 
-          // Render pie chart with combined data
+          // Draw overall attendance pie chart
           const ctx = document.getElementById('attendanceChart').getContext('2d');
           new Chart(ctx, {
             type: 'pie',
@@ -219,7 +217,7 @@
               labels: ['Present', 'Absent'],
               datasets: [{
                 label: 'Attendance',
-                data: [totalPresent, totalAbsent],
+                data: [present, absent],
                 backgroundColor: ['#3f83f8', '#f87171'],
                 borderWidth: 1
               }]
@@ -237,7 +235,7 @@
             }
           });
 
-          // Fetch attendance history subcollection (unchanged)
+          // Load attendance history
           const historyRef = collection(db, "attendance", uid, "history");
           const historySnap = await getDocs(query(historyRef, orderBy("timestamp", "desc")));
           const tbody = document.querySelector("#historyTable tbody");
@@ -245,14 +243,85 @@
           if (historySnap.empty) {
             tbody.innerHTML = `<tr><td colspan="2">No history found.</td></tr>`;
           } else {
-            tbody.innerHTML = ""; // Clear any placeholders
             historySnap.forEach(doc => {
               const record = doc.data();
-              const date = record.timestamp ? new Date(record.timestamp.seconds * 1000).toLocaleDateString() : "Unknown";
+              const date = new Date(record.timestamp?.seconds * 1000).toLocaleDateString();
               const status = record.status || "Present";
               tbody.innerHTML += `<tr><td>${date}</td><td>${status}</td></tr>`;
             });
           }
+
+          // View More button logic to show per-subject charts
+          const viewMoreBtn = document.getElementById('viewMoreBtn');
+          const subjectDetails = document.getElementById('subjectDetails');
+          const subjectCharts = document.getElementById('subjectCharts');
+
+          viewMoreBtn.addEventListener('click', async () => {
+            if (subjectDetails.style.display === 'none') {
+              subjectDetails.style.display = 'block';
+
+              // Fetch per-subject attendance
+              const subjectsRef = collection(db, "attendance", uid, "subjects");
+              const subjectsSnap = await getDocs(subjectsRef);
+
+              if (subjectsSnap.empty) {
+                subjectCharts.innerHTML = '<p>No subject-wise attendance data found.</p>';
+              } else {
+                subjectCharts.innerHTML = ''; // clear before adding charts
+
+                subjectsSnap.forEach(doc => {
+                  const subjectData = doc.data();
+                  const subjectName = doc.id;
+                  const totalClasses = subjectData.totalClasses || 0;
+                  const present = subjectData.present || 0;
+                  const absent = totalClasses - present;
+
+                  // Create container for each subject chart
+                  const subjectDiv = document.createElement('div');
+                  subjectDiv.classList.add('subject-chart-card');
+                  const chartId = `chart-${subjectName}`;
+                  subjectDiv.innerHTML = `
+                    <h4>${subjectName}</h4>
+                    <canvas id="${chartId}" width="150" height="150"></canvas>
+                    <p><strong>Total:</strong> ${totalClasses} <br><strong>Present:</strong> ${present} <br><strong>Absent:</strong> ${absent}</p>
+                  `;
+                  subjectCharts.appendChild(subjectDiv);
+
+                  // Draw pie chart for subject
+                  const ctx = subjectDiv.querySelector('canvas').getContext('2d');
+                  new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                      labels: ['Present', 'Absent'],
+                      datasets: [{
+                        label: `Attendance - ${subjectName}`,
+                        data: [present, absent],
+                        backgroundColor: ['#3f83f8', '#f87171'],
+                        borderWidth: 1
+                      }]
+                    },
+                    options: {
+                      responsive: false,
+                      plugins: {
+                        legend: {
+                          position: 'bottom',
+                          labels: {
+                            color: document.body.classList.contains('dark-mode') ? '#f5f5f5' : '#1c1c1c'
+                          }
+                        }
+                      }
+                    }
+                  });
+                });
+              }
+
+              viewMoreBtn.textContent = 'Hide Details';
+
+            } else {
+              subjectDetails.style.display = 'none';
+              viewMoreBtn.textContent = 'View More';
+            }
+          });
 
         } else {
           container.innerHTML = `<div class="card"><p>No attendance record found.</p></div>`;
