@@ -2,180 +2,132 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Dashboard - All Students</title>
+  <title>Admin Panel - ChemEng Attendance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f3f6fb;
+      background: #eef2ff;
       margin: 0;
       padding: 20px;
+      color: #1e293b;
     }
-    h1, h2 {
+    h1 {
       text-align: center;
-      color: #111;
+      color: #1d4ed8;
     }
     table {
-      width: 90%;
-      margin: 20px auto;
+      width: 100%;
       border-collapse: collapse;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-top: 30px;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
     }
     th, td {
       padding: 12px;
-      text-align: center;
-      border: 1px solid #ccc;
+      border: 1px solid #cbd5e1;
+      text-align: left;
     }
     th {
       background-color: #3b82f6;
       color: white;
     }
-    #error {
-      color: red;
+    nav {
       text-align: center;
+      margin-bottom: 20px;
     }
-    #announceBox {
-      width: 90%;
-      margin: 20px auto;
-      padding: 10px;
-      border: 1px solid #ccc;
-      background-color: white;
+    nav a {
+      margin: 0 15px;
+      text-decoration: none;
+      color: #1e40af;
+      font-weight: bold;
     }
-    #announcementInput {
-      width: 100%;
-      height: 80px;
-      padding: 10px;
-      font-size: 16px;
-    }
-    #postBtn {
-      margin-top: 10px;
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #3b82f6;
-      color: white;
-      border: none;
-      cursor: pointer;
+    nav a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
-  <h1>Admin Dashboard - All Students</h1>
-  <div id="error"></div>
-
-  <table id="studentTable">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Present</th>
-        <th>Absent</th>
-        <th>Total Classes</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
+  <h1>Admin Attendance Panel</h1>
+  <nav>
+    <a href="index.html">🏠 Home</a>
+    <a href="mark-attendance.html">✅ Mark Attendance</a>
+    <a href="dashboard.html">📊 Dashboard</a>
+    <a href="#" onclick="logout()">🚪 Logout</a>
+  </nav>
+  <table id="attendanceTable">
+    <tr>
+      <th>Email</th>
+      <th>Subject</th>
+      <th>Timestamp</th>
+    </tr>
   </table>
 
-  <div id="announceBox">
-    <h2>📢 Make Announcement</h2>
-    <textarea id="announcementInput" placeholder="Write your announcement here..."></textarea>
-    <button id="postBtn">Publish</button>
-  </div>
-
   <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs, addDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCUi0onRj7M8El8Iv1PgERpgpjzb5X0rCI",
-    authDomain: "attendance311.firebaseapp.com",
-    projectId: "attendance311",
-    storageBucket: "attendance311.appspot.com",
-    messagingSenderId: "120133746939",
-    appId: "1:120133746939:web:3794d01a14991e5c78f3d5"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyBVIU4-cNma6fZCef2BQaGOo307TGBDk50",
+      authDomain: "attendance311.firebaseapp.com",
+      projectId: "attendance311",
+      storageBucket: "attendance311.appspot.com",
+      messagingSenderId: "564903256212",
+      appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
+      measurementId: "G-NZEEX42J3P"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+    const adminEmails = ["anand31145@gmail.com"];
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-  const adminEmails = ["anand31145@gmail.com"]; // Replace if more admins
-
- onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    // Delay 1 second to give Firebase a chance to detect session
-    setTimeout(() => {
-      if (!auth.currentUser) {
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("Please login first.");
         window.location.href = "index.html";
+        return;
       }
-    }, 1000);
-    return;
-  }
 
-  // Confirm admin
-  if (!adminEmails.includes(user.email)) {
-    window.location.href = "dashboard.html";
-    return;
-  }
+      if (!adminEmails.includes(user.email)) {
+        alert("Access denied. Admins only.");
+        window.location.href = "index.html";
+        return;
+      }
 
-  // Load data if verified admin
-  loadData();
-});
+      const attendanceSnapshot = await getDocs(collection(db, "attendance"));
+      const table = document.getElementById("attendanceTable");
 
-
-    if (!adminEmails.includes(user.email)) {
-      window.location.href = "dashboard.html";
-      return;
-    }
-
-    // ✅ Load admin data
-    loadData();
-  });
-
-  async function loadData() {
-    try {
-      const snapshot = await getDocs(collection(db, "attendance"));
-      const tableBody = document.querySelector("#studentTable tbody");
-      tableBody.innerHTML = "";
-
-      snapshot.forEach(async (docSnap) => {
+      for (const docSnap of attendanceSnapshot.docs) {
         const data = docSnap.data();
-        const uid = docSnap.id;
+        const uid = data.uid;
+        let email = "Unknown";
 
-        const userDoc = await getDoc(doc(db, "users", uid));
-        const userData = userDoc.exists() ? userDoc.data() : {};
+        try {
+          const userRef = doc(db, "users", uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            email = userSnap.data().email || "Unknown";
+          }
+        } catch (e) {
+          console.warn("Error fetching user email for UID:", uid, e);
+        }
 
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${userData.name || "N/A"}</td>
-          <td>${userData.email || "N/A"}</td>
-          <td>${data.totalPresent || 0}</td>
-          <td>${data.totalAbsent || 0}</td>
-          <td>${data.totalClasses || 0}</td>
+        const row = `
+          <tr>
+            <td>${email}</td>
+            <td>${data.subject || "N/A"}</td>
+            <td>${data.timestamp || "N/A"}</td>
+          </tr>
         `;
-        tableBody.appendChild(row);
-      });
-    } catch (err) {
-      console.error("Error fetching student data:", err);
-      document.getElementById("error").textContent = "⚠️ Failed to load student data.";
-    }
-  }
+        table.innerHTML += row;
+      }
+    });
 
-  // Announcement logic
-  document.getElementById("postBtn").addEventListener("click", async () => {
-    const text = document.getElementById("announcementInput").value.trim();
-    if (!text) return alert("Write something before publishing.");
-
-    try {
-      await addDoc(collection(db, "announcements"), {
-        text,
-        timestamp: new Date().toISOString()
-      });
-      alert("✅ Announcement published!");
-      document.getElementById("announcementInput").value = "";
-    } catch (err) {
-      console.error("Announcement error:", err);
-      alert("⚠️ Failed to post announcement.");
-    }
-  });
-</script>
-
+    window.logout = () => {
+      signOut(auth).then(() => window.location.href = "index.html");
+    };
+  </script>
+</body>
+</html>
