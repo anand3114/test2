@@ -52,12 +52,11 @@
   </table>
 
   <script type="module">
-    // Firebase v11 SDK import
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
     import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
-    // ✅ Replace with YOUR Firebase Config
+    // ✅ Your Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyCUi0onRj7M8El8Iv1PgERpgpjzb5X0rCI",
       authDomain: "attendance311.firebaseapp.com",
@@ -67,20 +66,25 @@
       appId: "1:120133746939:web:3794d01a14991e5c78f3d5"
     };
 
+    const adminEmails = ["anand31145@gmail.com"]; // ✅ Add your admin email(s) here
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    const adminEmails = ["anand31145@gmail.com"]; // ✅ Replace with your admin emails
-
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        window.location.href = "index.html"; // Not logged in
+        console.warn("User not logged in");
+        window.location.href = "index.html";
         return;
       }
 
-      if (!adminEmails.includes(user.email)) {
-        window.location.href = "dashboard.html"; // Not an admin
+      const email = user.email.toLowerCase();
+      console.log("Logged in as:", email);
+
+      if (!adminEmails.includes(email)) {
+        console.warn("User is not admin, redirecting to dashboard...");
+        window.location.href = "dashboard.html";
         return;
       }
 
@@ -100,8 +104,10 @@
           `;
           tableBody.appendChild(row);
         });
+
+        console.log("Data loaded successfully.");
       } catch (err) {
-        console.error("Error fetching admin data:", err);
+        console.error("Error fetching data:", err);
         document.getElementById("error").textContent = "⚠️ Failed to load data. Check console.";
       }
     });
