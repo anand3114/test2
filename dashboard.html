@@ -17,6 +17,24 @@
       --accent: #3f83f8;
       --accent-dark: #2b66d1;
     }
+.back-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  margin-top: 20px;
+}
+.back-button:hover {
+  background: var(--accent-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+}
 
     body {
       margin: 0;
@@ -208,6 +226,8 @@
                 </thead>
                 <tbody></tbody>
               </table>
+              <button class="back-button" onclick="history.back()">⬅ Back</button>
+
             </div>
           `;
 
