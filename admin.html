@@ -12,6 +12,26 @@
       background-color: #f4f6fc;
       padding: 20px;
     }
+    .back-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  background: #1d4ed8;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 30px auto 0;
+  display: block;
+}
+.back-button:hover {
+  background: #1e40af;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
 
     .container {
       max-width: 1100px;
@@ -108,7 +128,9 @@
       <input id="announcement-title" placeholder="Title of announcement" />
       <textarea id="announcement-text" rows="4" placeholder="Write your announcement here..."></textarea>
       <button id="publish-btn">Publish</button>
+      
     </div>
+<button class="back-button" onclick="history.back()">⬅ Back</button>
 
     <div class="section">
       <h3>All Announcements</h3>
