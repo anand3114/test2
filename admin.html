@@ -44,7 +44,7 @@
       color: white;
     }
 
-    textarea {
+    input, textarea {
       width: 100%;
       padding: 10px;
       font-size: 1rem;
@@ -82,36 +82,37 @@
     .logout:hover {
       background-color: #d9363e;
     }
+
+    .announcement-card {
+      background: #f0f0f5;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    .announcement-card h4 {
+      margin: 0 0 5px 0;
+    }
+
+    .announcement-card button {
+      margin-right: 10px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Admin – Dashboard</h2>
 
-    <!-- Attendance Table -->
-    <div class="section">
-      <h3>All Students Attendance</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Student ID</th>
-            <th>Subject</th>
-            <th>Present</th>
-            <th>Total</th>
-            <th>%</th>
-          </tr>
-        </thead>
-        <tbody id="admin-table">
-          <!-- Attendance data will be inserted here -->
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Announcement Section -->
     <div class="section">
       <h3>Publish Announcement</h3>
+      <input id="announcement-title" placeholder="Title of announcement" />
       <textarea id="announcement-text" rows="4" placeholder="Write your announcement here..."></textarea>
       <button id="publish-btn">Publish</button>
+    </div>
+
+    <div class="section">
+      <h3>All Announcements</h3>
+      <div id="announcement-list"></div>
     </div>
   </div>
 
@@ -121,8 +122,8 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
     import {
-      getFirestore, collection, getDocs, addDoc,
-      doc
+      getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc,
+      doc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -139,67 +140,77 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    const tableBody = document.getElementById("admin-table");
-    const publishBtn = document.getElementById("publish-btn");
+    const announcementTitle = document.getElementById("announcement-title");
     const announcementText = document.getElementById("announcement-text");
+    const publishBtn = document.getElementById("publish-btn");
+    const announcementList = document.getElementById("announcement-list");
 
     const ADMIN_EMAIL = "anand31145@gmail.com";
 
-    // Load attendance data
-    const loadAttendance = async () => {
-      const snapshot = await getDocs(collection(db, "attendance"));
+    const renderAnnouncements = async () => {
+      announcementList.innerHTML = "";
+      const snapshot = await getDocs(collection(db, "announcements"));
       snapshot.forEach(docSnap => {
-        const userId = docSnap.id;
         const data = docSnap.data();
-        const subjects = data.subjects || {};
-
-        for (const [subject, subData] of Object.entries(subjects)) {
-          const present = subData.totalPresent || 0;
-          const total = subData.totalClasses || 0;
-          const percent = total > 0 ? ((present / total) * 100).toFixed(1) : "0.0";
-
-          const row = `
-            <tr>
-              <td>${userId}</td>
-              <td>${subject}</td>
-              <td>${present}</td>
-              <td>${total}</td>
-              <td>${percent}%</td>
-            </tr>
-          `;
-          tableBody.innerHTML += row;
-        }
+        const div = document.createElement("div");
+        div.className = "announcement-card";
+        div.innerHTML = `
+          <h4>${data.title}</h4>
+          <p>${data.content}</p>
+          <button onclick="editAnnouncement('${docSnap.id}', '${data.title}', '${data.content}')">Edit</button>
+          <button onclick="deleteAnnouncement('${docSnap.id}')">Delete</button>
+        `;
+        announcementList.appendChild(div);
       });
     };
 
-    // Publish announcement
     publishBtn.addEventListener("click", async () => {
-      const text = announcementText.value.trim();
-      if (text === "") {
-        alert("Announcement cannot be empty.");
-        return;
-      }
+      const title = announcementTitle.value.trim();
+      const content = announcementText.value.trim();
+      if (title === "" || content === "") return alert("Fill both title and content.");
 
       await addDoc(collection(db, "announcements"), {
-        message: text,
-        timestamp: new Date()
+        title,
+        content,
+        date: serverTimestamp(),
+        reactions: { like: 0, love: 0, laugh: 0, wow: 0 }
       });
 
-      alert("✅ Announcement published!");
+      announcementTitle.value = "";
       announcementText.value = "";
+      renderAnnouncements();
     });
 
-    // Logout function
+    window.editAnnouncement = async (id, oldTitle, oldContent) => {
+      const newTitle = prompt("Edit title:", oldTitle);
+      const newContent = prompt("Edit content:", oldContent);
+      if (newTitle && newContent) {
+        await updateDoc(doc(db, "announcements", id), {
+          title: newTitle,
+          content: newContent,
+          date: serverTimestamp()
+        });
+        renderAnnouncements();
+      }
+    };
+
+    window.deleteAnnouncement = async (id) => {
+      const confirmDel = confirm("Are you sure you want to delete this announcement?");
+      if (confirmDel) {
+        await deleteDoc(doc(db, "announcements", id));
+        renderAnnouncements();
+      }
+    };
+
     window.logout = () => {
       signOut(auth).then(() => {
         window.location.href = "index.html";
       });
     };
 
-    // Check admin auth
     onAuthStateChanged(auth, (user) => {
       if (user && user.email === ADMIN_EMAIL) {
-        loadAttendance();
+        renderAnnouncements();
       } else {
         alert("Access Denied: Admins only");
         window.location.href = "index.html";
