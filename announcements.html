@@ -2,77 +2,73 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>📢 Latest Announcements</title>
+  <title>📢 Announcements</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
     body {
-      margin: 0;
-      padding: 30px;
       font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, #f0f9ff, #ecfeff);
+      background: #f0f9ff;
+      padding: 20px;
       color: #1e293b;
     }
-
     h1 {
       text-align: center;
       margin-bottom: 30px;
-      font-size: 2rem;
     }
-
     .announcement {
-      background: rgba(255, 255, 255, 0.7);
-      border: 1px solid rgba(0, 0, 0, 0.1);
-      border-radius: 12px;
+      background: white;
       padding: 20px;
       margin-bottom: 20px;
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
-      backdrop-filter: blur(10px);
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.05);
     }
-
     .announcement h3 {
       margin-top: 0;
       color: #1d4ed8;
     }
-
     .announcement small {
-      color: #64748b;
+      color: gray;
     }
-
-    .react-btn {
-      background: none;
+    .reaction-btn, .edit-btn, .delete-btn {
+      margin: 5px 10px 5px 0;
+      padding: 5px 10px;
       border: none;
+      border-radius: 5px;
       cursor: pointer;
-      font-size: 1.3rem;
-      margin-right: 10px;
     }
-
-    .react-btn:disabled {
-      opacity: 0.5;
+    .reaction-btn:disabled {
+      opacity: 0.6;
       cursor: not-allowed;
     }
-
-    .edit-btn {
-      background: #1d4ed8;
-      color: white;
-      padding: 4px 10px;
-      border: none;
-      border-radius: 4px;
-      margin-left: 10px;
-      cursor: pointer;
+    .edit-btn { background: #4f46e5; color: white; }
+    .delete-btn { background: #dc2626; color: white; }
+    .comment-box {
+      margin-top: 15px;
     }
-
-    #announcement-list {
-      max-width: 700px;
-      margin: auto;
+    .comment-box textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      resize: vertical;
+    }
+    .comment-box button {
+      margin-top: 5px;
+    }
+    .comment {
+      background: #f9fafb;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-top: 5px;
     }
   </style>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import {
-      getFirestore, collection, getDocs, query, orderBy,
-      updateDoc, doc, increment, getDoc, setDoc
+      getFirestore, collection, query, orderBy, onSnapshot,
+      updateDoc, doc, increment, getDoc, setDoc, addDoc,
+      deleteDoc
     } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
     import {
       getAuth, onAuthStateChanged
@@ -92,61 +88,42 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
     const container = document.getElementById("announcement-list");
+    const ADMIN_EMAIL = "anand31145@gmail.com";
 
-    const ADMIN_EMAIL = "admin@example.com"; // change to your actual admin email
     let currentUser;
 
-    onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(auth, user => {
       if (!user) {
-        alert("Please log in first.");
-        window.location.href = "index.html";
+        alert("Please log in.");
+        location.href = "index.html";
         return;
       }
-
       currentUser = user;
       const isAdmin = user.email === ADMIN_EMAIL;
-      await loadAnnouncements(isAdmin);
+      loadAnnouncements(isAdmin);
     });
 
-    async function loadAnnouncements(isAdmin) {
-      try {
-        const q = query(collection(db, "announcements"), orderBy("date", "desc"));
-        const snapshot = await getDocs(q);
+    function getEmoji(type) {
+      return { like: "👍", love: "❤️", laugh: "😂", wow: "😮" }[type];
+    }
 
-        console.log("Fetched announcements:", snapshot.size);
-
-        if (snapshot.empty) {
-          container.innerHTML = "<p>No announcements available.</p>";
-          return;
-        }
-
+    function loadAnnouncements(isAdmin) {
+      const q = query(collection(db, "announcements"), orderBy("date", "desc"));
+      onSnapshot(q, async (snapshot) => {
         container.innerHTML = "";
-
         for (const docSnap of snapshot.docs) {
           const data = docSnap.data();
           const id = docSnap.id;
+          const dateText = data.date?.toDate().toLocaleString() || "Unknown";
+          const reactions = data.reactions || {};
 
-          let dateText = "Unknown";
-          try {
-            dateText = data.date?.toDate().toLocaleString() || "Unknown";
-          } catch {
-            console.warn("Invalid/missing date in:", id);
-          }
-
-          const reactions = {
-            like: data.reactions?.like || 0,
-            love: data.reactions?.love || 0,
-            laugh: data.reactions?.laugh || 0,
-            wow: data.reactions?.wow || 0
-          };
-
+          const annRef = doc(db, "announcements", id);
           const userReactRef = doc(db, "users", currentUser.uid, "likes", id);
           const userReactDoc = await getDoc(userReactRef);
           const hasReacted = userReactDoc.exists();
 
           const annCard = document.createElement("div");
           annCard.className = "announcement";
-          annCard.id = `ann-${id}`;
           annCard.innerHTML = `
             <h3>${data.title || "Untitled"}</h3>
             <small>${dateText}</small>
@@ -156,18 +133,13 @@
           const reactionDiv = document.createElement("div");
           ["like", "love", "laugh", "wow"].forEach(type => {
             const btn = document.createElement("button");
-            btn.className = "react-btn";
-            btn.textContent = getEmoji(type) + " " + reactions[type];
+            btn.className = "reaction-btn";
+            btn.textContent = `${getEmoji(type)} ${reactions[type] || 0}`;
             btn.disabled = hasReacted;
-            btn.addEventListener("click", async () => {
-              const annRef = doc(db, "announcements", id);
-              await updateDoc(annRef, {
-                [`reactions.${type}`]: increment(1)
-              });
-              const likeRef = doc(db, "users", currentUser.uid, "likes", id);
-              await setDoc(likeRef, { reacted: true, type });
-              loadAnnouncements(isAdmin); // Reload UI without full page reload
-            });
+            btn.onclick = async () => {
+              await updateDoc(annRef, { [`reactions.${type}`]: increment(1) });
+              await setDoc(userReactRef, { reacted: true });
+            };
             reactionDiv.appendChild(btn);
           });
 
@@ -175,28 +147,62 @@
             const editBtn = document.createElement("button");
             editBtn.className = "edit-btn";
             editBtn.textContent = "Edit";
-            editBtn.addEventListener("click", () => {
-              alert(`Edit feature for announcement: ${id} (admin only).`);
-            });
+            editBtn.onclick = () => alert(`Editing announcement ${id}...`);
+
+            const delBtn = document.createElement("button");
+            delBtn.className = "delete-btn";
+            delBtn.textContent = "Delete";
+            delBtn.onclick = async () => {
+              if (confirm("Are you sure you want to delete this announcement?")) {
+                await deleteDoc(annRef);
+              }
+            };
+
             reactionDiv.appendChild(editBtn);
+            reactionDiv.appendChild(delBtn);
           }
 
           annCard.appendChild(reactionDiv);
+
+          // Comment section
+          const commentBox = document.createElement("div");
+          commentBox.className = "comment-box";
+
+          const commentInput = document.createElement("textarea");
+          commentInput.placeholder = "Write a comment...";
+          const commentBtn = document.createElement("button");
+          commentBtn.textContent = "Post";
+          commentBtn.onclick = async () => {
+            const text = commentInput.value.trim();
+            if (text) {
+              await addDoc(collection(db, `announcements/${id}/comments`), {
+                text,
+                user: currentUser.email,
+                time: new Date()
+              });
+              commentInput.value = "";
+            }
+          };
+
+          commentBox.appendChild(commentInput);
+          commentBox.appendChild(commentBtn);
+
+          const commentsRef = collection(db, `announcements/${id}/comments`);
+          onSnapshot(commentsRef, (commentSnap) => {
+            const existing = annCard.querySelectorAll(".comment");
+            existing.forEach(e => e.remove());
+            commentSnap.forEach(doc => {
+              const c = document.createElement("div");
+              c.className = "comment";
+              c.textContent = `${doc.data().user}: ${doc.data().text}`;
+              annCard.appendChild(c);
+            });
+          });
+
+          annCard.appendChild(commentBox);
           container.appendChild(annCard);
         }
-      } catch (err) {
-        console.error("Error loading announcements:", err);
-        container.innerHTML = `<p>Error loading announcements.</p>`;
-      }
-    }
-
-    function getEmoji(type) {
-      return {
-        like: "👍",
-        love: "❤️",
-        laugh: "😂",
-        wow: "😮"
-      }[type];
+      });
     }
   </script>
 </head>
