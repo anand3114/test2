@@ -93,7 +93,7 @@
     const auth = getAuth(app);
     const container = document.getElementById("announcement-list");
 
-    const ADMIN_EMAIL = "admin@example.com"; // Change this to your actual admin email
+    const ADMIN_EMAIL = "admin@example.com"; // change to your actual admin email
     let currentUser;
 
     onAuthStateChanged(auth, async (user) => {
@@ -109,71 +109,84 @@
     });
 
     async function loadAnnouncements(isAdmin) {
-      const q = query(collection(db, "announcements"), orderBy("date", "desc"));
-      const snapshot = await getDocs(q);
+      try {
+        const q = query(collection(db, "announcements"), orderBy("date", "desc"));
+        const snapshot = await getDocs(q);
 
-      if (snapshot.empty) {
-        container.innerHTML = "<p>No announcements available.</p>";
-        return;
-      }
+        console.log("Fetched announcements:", snapshot.size);
 
-      container.innerHTML = "";
-
-      for (const docSnap of snapshot.docs) {
-        const data = docSnap.data();
-        const id = docSnap.id;
-        const date = data.date?.toDate().toLocaleString() || "Unknown";
-
-        const reactions = {
-          like: data.reactions?.like || 0,
-          love: data.reactions?.love || 0,
-          laugh: data.reactions?.laugh || 0,
-          wow: data.reactions?.wow || 0
-        };
-
-        const userReactRef = doc(db, "users", currentUser.uid, "likes", id);
-        const userReactDoc = await getDoc(userReactRef);
-        const hasReacted = userReactDoc.exists();
-
-        const annCard = document.createElement("div");
-        annCard.className = "announcement";
-        annCard.id = `ann-${id}`;
-        annCard.innerHTML = `
-          <h3>${data.title || "Untitled"}</h3>
-          <small>${date}</small>
-          <p>${data.content || ""}</p>
-        `;
-
-        const reactionDiv = document.createElement("div");
-        ["like", "love", "laugh", "wow"].forEach(type => {
-          const btn = document.createElement("button");
-          btn.className = "react-btn";
-          btn.textContent = getEmoji(type) + " " + reactions[type];
-          btn.disabled = hasReacted;
-          btn.addEventListener("click", async () => {
-            const annRef = doc(db, "announcements", id);
-            await updateDoc(annRef, {
-              [`reactions.${type}`]: increment(1)
-            });
-            const likeRef = doc(db, "users", currentUser.uid, "likes", id);
-            await setDoc(likeRef, { reacted: true, type });
-            location.reload();
-          });
-          reactionDiv.appendChild(btn);
-        });
-
-        if (isAdmin) {
-          const editBtn = document.createElement("button");
-          editBtn.className = "edit-btn";
-          editBtn.textContent = "Edit";
-          editBtn.addEventListener("click", () => {
-            alert(`Edit feature for announcement: ${id} (admin only).`);
-          });
-          reactionDiv.appendChild(editBtn);
+        if (snapshot.empty) {
+          container.innerHTML = "<p>No announcements available.</p>";
+          return;
         }
 
-        annCard.appendChild(reactionDiv);
-        container.appendChild(annCard);
+        container.innerHTML = "";
+
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+          const id = docSnap.id;
+
+          let dateText = "Unknown";
+          try {
+            dateText = data.date?.toDate().toLocaleString() || "Unknown";
+          } catch {
+            console.warn("Invalid/missing date in:", id);
+          }
+
+          const reactions = {
+            like: data.reactions?.like || 0,
+            love: data.reactions?.love || 0,
+            laugh: data.reactions?.laugh || 0,
+            wow: data.reactions?.wow || 0
+          };
+
+          const userReactRef = doc(db, "users", currentUser.uid, "likes", id);
+          const userReactDoc = await getDoc(userReactRef);
+          const hasReacted = userReactDoc.exists();
+
+          const annCard = document.createElement("div");
+          annCard.className = "announcement";
+          annCard.id = `ann-${id}`;
+          annCard.innerHTML = `
+            <h3>${data.title || "Untitled"}</h3>
+            <small>${dateText}</small>
+            <p>${data.content || ""}</p>
+          `;
+
+          const reactionDiv = document.createElement("div");
+          ["like", "love", "laugh", "wow"].forEach(type => {
+            const btn = document.createElement("button");
+            btn.className = "react-btn";
+            btn.textContent = getEmoji(type) + " " + reactions[type];
+            btn.disabled = hasReacted;
+            btn.addEventListener("click", async () => {
+              const annRef = doc(db, "announcements", id);
+              await updateDoc(annRef, {
+                [`reactions.${type}`]: increment(1)
+              });
+              const likeRef = doc(db, "users", currentUser.uid, "likes", id);
+              await setDoc(likeRef, { reacted: true, type });
+              loadAnnouncements(isAdmin); // Reload UI without full page reload
+            });
+            reactionDiv.appendChild(btn);
+          });
+
+          if (isAdmin) {
+            const editBtn = document.createElement("button");
+            editBtn.className = "edit-btn";
+            editBtn.textContent = "Edit";
+            editBtn.addEventListener("click", () => {
+              alert(`Edit feature for announcement: ${id} (admin only).`);
+            });
+            reactionDiv.appendChild(editBtn);
+          }
+
+          annCard.appendChild(reactionDiv);
+          container.appendChild(annCard);
+        }
+      } catch (err) {
+        console.error("Error loading announcements:", err);
+        container.innerHTML = `<p>Error loading announcements.</p>`;
       }
     }
 
