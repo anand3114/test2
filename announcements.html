@@ -13,6 +13,26 @@
       background: linear-gradient(135deg, #f0f9ff, #ecfeff);
       color: #1e293b;
     }
+    .back-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  background: #1d4ed8;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 30px auto 0;
+  display: block;
+}
+.back-button:hover {
+  background: #1e40af;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
     h1 {
       text-align: center;
       margin-bottom: 30px;
@@ -121,7 +141,7 @@
     const auth = getAuth(app);
     const container = document.getElementById("announcement-list");
 
-    const ADMIN_EMAIL = "admin@example.com"; // Change to your admin email
+    const ADMIN_EMAIL = "anand31145@example.com"; // Change to your admin email
     let currentUser;
 
     onAuthStateChanged(auth, async (user) => {
@@ -313,5 +333,7 @@
 <body>
   <h1>📢 Latest Announcements</h1>
   <div id="announcement-list">Loading...</div>
+  <button class="back-button" onclick="history.back()">⬅ Back</button>
+
 </body>
 </html>
