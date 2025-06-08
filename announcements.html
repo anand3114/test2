@@ -2,61 +2,105 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>📢 Announcements</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <title>📢 Latest Announcements</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     body {
-      font-family: 'Inter', sans-serif;
       margin: 0;
-      padding: 20px;
-      background: #ecfeff;
+      padding: 30px;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f0f9ff, #ecfeff);
+      color: #1e293b;
     }
     h1 {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 30px;
+      font-size: 2rem;
     }
     .announcement {
-      background: #fff;
-      border-radius: 10px;
-      padding: 15px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 20px;
       margin-bottom: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+      backdrop-filter: blur(10px);
     }
-    .reactions button {
-      font-size: 1.2rem;
+    .announcement h3 {
+      margin-top: 0;
+      color: #1d4ed8;
+    }
+    .announcement small {
+      color: #64748b;
+    }
+    .react-btn {
       background: none;
       border: none;
       cursor: pointer;
-      margin-right: 8px;
+      font-size: 1.3rem;
+      margin-right: 10px;
     }
-    .comment-section {
-      margin-top: 10px;
+    .react-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
-    .comment-section textarea {
-      width: 100%;
-      resize: vertical;
-      padding: 8px;
-      border-radius: 5px;
-      margin-bottom: 8px;
+    .edit-btn {
+      background: #1d4ed8;
+      color: white;
+      padding: 4px 10px;
+      border: none;
+      border-radius: 4px;
+      margin-left: 10px;
+      cursor: pointer;
+    }
+    #announcement-list {
+      max-width: 700px;
+      margin: auto;
+    }
+    /* Comment styles */
+    .comments-section {
+      margin-top: 15px;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
     }
     .comment {
-      background: #f1f5f9;
-      padding: 5px 10px;
+      padding: 8px 10px;
+      background: #eef6ff;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+    .comment strong {
+      color: #1d4ed8;
+    }
+    .comment-input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 10px;
       border-radius: 6px;
-      margin-top: 5px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+    .comment-btn {
+      margin-top: 6px;
+      padding: 6px 12px;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .comment-btn:disabled {
+      background-color: #a5b4fc;
+      cursor: not-allowed;
     }
   </style>
-</head>
-<body>
-  <h1>📢 Latest Announcements</h1>
-  <div id="announcement-list">Loading...</div>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import {
-      getFirestore, collection, doc, onSnapshot, updateDoc, increment,
-      getDoc, setDoc, orderBy, query
+      getFirestore, collection, getDocs, query, orderBy,
+      updateDoc, doc, increment, setDoc, onSnapshot
     } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
     import {
       getAuth, onAuthStateChanged
@@ -68,7 +112,8 @@
       projectId: "attendance311",
       storageBucket: "attendance311.appspot.com",
       messagingSenderId: "564903256212",
-      appId: "1:564903256212:web:37dae9a02e39abbf3dd481"
+      appId: "1:564903256212:web:37dae9a02e39abbf3dd481",
+      measurementId: "G-NZEEX42J3P"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -76,16 +121,17 @@
     const auth = getAuth(app);
     const container = document.getElementById("announcement-list");
 
-    let currentUser = null;
+    const ADMIN_EMAIL = "admin@example.com"; // Change to your admin email
+    let currentUser;
 
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        alert("Please log in.");
-        location.href = "index.html";
+        alert("Please log in first.");
+        window.location.href = "index.html";
         return;
       }
       currentUser = user;
-      loadRealTimeAnnouncements();
+      await loadAnnouncements();
     });
 
     function getEmoji(type) {
@@ -94,108 +140,178 @@
         love: "❤️",
         laugh: "😂",
         wow: "😮"
-      }[type];
+      }[type] || "";
     }
 
-    function loadRealTimeAnnouncements() {
-      const q = query(collection(db, "announcements"), orderBy("date", "desc"));
-      onSnapshot(q, (snapshot) => {
-        container.innerHTML = "";
-        snapshot.forEach(async (docSnap) => {
-          const data = docSnap.data();
-          const id = docSnap.id;
+    async function loadAnnouncements() {
+      try {
+        const q = query(collection(db, "announcements"), orderBy("date", "desc"));
+        // Using onSnapshot for real-time updates
+        onSnapshot(q, async (snapshot) => {
+          container.innerHTML = "";
+          if (snapshot.empty) {
+            container.innerHTML = "<p>No announcements available.</p>";
+            return;
+          }
 
-          const reactions = data.reactions || {};
-          const comments = data.comments || [];
-
-          const annCard = document.createElement("div");
-          annCard.className = "announcement";
-
-          const timestamp = data.date?.toDate?.();
-          const formattedDate = timestamp ? timestamp.toLocaleString() : "";
-
-          annCard.innerHTML = `
-            <h3>${data.title || "Untitled"}</h3>
-            <small>${formattedDate}</small>
-            <p>${data.content}</p>
-          `;
-
-          // Reactions
-          const reactDiv = document.createElement("div");
-          reactDiv.className = "reactions";
-
-          ["like", "love", "laugh", "wow"].forEach(async (type) => {
-            const btn = document.createElement("button");
-            btn.textContent = `${getEmoji(type)} ${reactions[type] || 0}`;
-
-            btn.onclick = async () => {
-              try {
-                const likeRef = doc(db, "users", currentUser.uid, "likes", id);
-                const liked = await getDoc(likeRef);
-
-                if (!liked.exists()) {
-                  await updateDoc(doc(db, "announcements", id), {
-                    [`reactions.${type}`]: increment(1)
-                  });
-                  await setDoc(likeRef, { reacted: true });
-                }
-              } catch (error) {
-                console.error("Reaction failed:", error);
-                alert("Reaction failed. Please try again.");
-              }
-            };
-
-            reactDiv.appendChild(btn);
+          // Load all user reactions once for this user
+          const userLikesCol = collection(db, "users", currentUser.uid, "likes");
+          const userLikesSnap = await getDocs(userLikesCol);
+          const userLikesMap = {};
+          userLikesSnap.forEach(doc => {
+            userLikesMap[doc.id] = doc.data();
           });
 
-          annCard.appendChild(reactDiv);
+          for (const docSnap of snapshot.docs) {
+            const data = docSnap.data();
+            const annId = docSnap.id;
 
-          // Comments
-          const commentDiv = document.createElement("div");
-          commentDiv.className = "comment-section";
-
-          const commentList = document.createElement("div");
-          comments.forEach(c => {
-            const p = document.createElement("div");
-            p.className = "comment";
-            p.textContent = `${c.user}: ${c.text}`;
-            commentList.appendChild(p);
-          });
-
-          const textarea = document.createElement("textarea");
-          textarea.placeholder = "Write a comment...";
-
-          const postBtn = document.createElement("button");
-          postBtn.textContent = "Post";
-          postBtn.onclick = async () => {
-            const text = textarea.value.trim();
-            if (!text) return;
-
+            let dateText = "Unknown";
             try {
-              const newComment = { user: currentUser.email, text };
-              const annRef = doc(db, "announcements", id);
-              const annDoc = await getDoc(annRef);
-              const prev = annDoc.data().comments || [];
+              dateText = data.date?.toDate().toLocaleString() || "Unknown";
+            } catch {}
 
-              await updateDoc(annRef, {
-                comments: [...prev, newComment]
+            const isAdmin = currentUser.email === ADMIN_EMAIL;
+            const hasReacted = !!userLikesMap[annId];
+
+            // Announcement card
+            const annCard = document.createElement("div");
+            annCard.className = "announcement";
+            annCard.id = `ann-${annId}`;
+            annCard.innerHTML = `
+              <h3>${data.title || "Untitled"}</h3>
+              <small>${dateText}</small>
+              <p>${data.content || ""}</p>
+            `;
+
+            // Reaction buttons container
+            const reactionDiv = document.createElement("div");
+            ["like", "love", "laugh", "wow"].forEach(type => {
+              const btn = document.createElement("button");
+              btn.className = "react-btn";
+              btn.textContent = getEmoji(type) + " " + (data.reactions?.[type] || 0);
+              btn.disabled = hasReacted;
+              btn.title = hasReacted ? "You already reacted" : `React with ${type}`;
+
+              btn.addEventListener("click", async () => {
+                btn.disabled = true;
+                const annRef = doc(db, "announcements", annId);
+                await updateDoc(annRef, {
+                  [`reactions.${type}`]: increment(1)
+                });
+                const likeRef = doc(db, "users", currentUser.uid, "likes", annId);
+                await setDoc(likeRef, { reacted: true, type });
               });
-              textarea.value = "";
-            } catch (err) {
-              console.error("Comment failed:", err);
-              alert("Failed to post comment.");
+
+              reactionDiv.appendChild(btn);
+            });
+
+            // Admin edit button
+            if (isAdmin) {
+              const editBtn = document.createElement("button");
+              editBtn.className = "edit-btn";
+              editBtn.textContent = "Edit";
+              editBtn.addEventListener("click", () => {
+                alert(`Edit feature for announcement: ${annId} (admin only).`);
+              });
+              reactionDiv.appendChild(editBtn);
             }
-          };
 
-          commentDiv.appendChild(textarea);
-          commentDiv.appendChild(postBtn);
-          commentDiv.appendChild(commentList);
-          annCard.appendChild(commentDiv);
+            annCard.appendChild(reactionDiv);
 
-          container.appendChild(annCard);
+            // Comments section
+            const commentsSection = document.createElement("div");
+            commentsSection.className = "comments-section";
+
+            const commentsList = document.createElement("div");
+            commentsList.id = `comments-list-${annId}`;
+            commentsSection.appendChild(commentsList);
+
+            // Comment input + button
+            const commentInput = document.createElement("input");
+            commentInput.type = "text";
+            commentInput.placeholder = "Write a comment...";
+            commentInput.className = "comment-input";
+
+            const commentBtn = document.createElement("button");
+            commentBtn.textContent = "Post";
+            commentBtn.className = "comment-btn";
+            commentBtn.disabled = true;
+
+            commentInput.addEventListener("input", () => {
+              commentBtn.disabled = commentInput.value.trim() === "";
+            });
+
+            commentBtn.addEventListener("click", async () => {
+              const text = commentInput.value.trim();
+              if (!text) return;
+
+              commentBtn.disabled = true;
+
+              const commentsRef = collection(db, "announcements", annId, "comments");
+              await setDoc(doc(commentsRef), {
+                userId: currentUser.uid,
+                userEmail: currentUser.email,
+                text,
+                timestamp: new Date()
+              });
+
+              commentInput.value = "";
+              commentBtn.disabled = true;
+            });
+
+            commentsSection.appendChild(commentInput);
+            commentsSection.appendChild(commentBtn);
+            annCard.appendChild(commentsSection);
+
+            container.appendChild(annCard);
+
+            // Load and listen for comments realtime
+            loadComments(annId);
+          }
+        });
+      } catch (err) {
+        console.error("Error loading announcements:", err);
+        container.innerHTML = `<p>Error loading announcements.</p>`;
+      }
+    }
+
+    function loadComments(announcementId) {
+      const commentsList = document.getElementById(`comments-list-${announcementId}`);
+      if (!commentsList) return;
+
+      const commentsRef = collection(db, "announcements", announcementId, "comments");
+      const q = query(commentsRef, orderBy("timestamp", "asc"));
+
+      onSnapshot(q, (snapshot) => {
+        commentsList.innerHTML = "";
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const dateStr = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString() : "";
+          const commentDiv = document.createElement("div");
+          commentDiv.className = "comment";
+          commentDiv.innerHTML = `<strong>${data.userEmail}:</strong> ${escapeHtml(data.text)} <br/><small>${dateStr}</small>`;
+          commentsList.appendChild(commentDiv);
         });
       });
     }
+
+    // Simple HTML escape to avoid injection issues
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, function (m) {
+        return {
+          '&': "&amp;",
+          '<': "&lt;",
+          '>': "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        }[m];
+      });
+    }
   </script>
+</head>
+<body>
+  <h1>📢 Latest Announcements</h1>
+  <div id="announcement-list">Loading...</div>
 </body>
 </html>
