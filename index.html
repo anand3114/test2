@@ -191,7 +191,7 @@
   <!-- 🌗 Dark Mode Button -->
   <button class="toggle-mode" onclick="toggleMode()">🌗</button>
 
-  <!-- 🧭 Navigation Bar -->
+  <!-- 🧭 Static Top Navigation Bar -->
   <nav>
     <a href="index.html" class="active">USER LOGIN</a>
     <a href="students.html">OUR STUDENTS</a>
@@ -228,15 +228,19 @@
       onAuthStateChanged(auth, (user) => {
         if (user) {
           const isAdmin = adminEmails.includes(user.email);
-          document.getElementById("container").innerHTML = `
+          let html = `
             <h2 style="text-align:center;">
               Welcome, ${user.email}<br>
               <span class="role-badge ${isAdmin ? '' : 'role-student'}">
                 ${isAdmin ? '🛡️ Admin' : '🎓 Student'}
               </span>
             </h2>
-            <button onclick="logout()">Logout</button>
           `;
+          if (isAdmin) {
+            html += `<p style="text-align:center;"><a href="admin.html">🛠️ Go to Admin Panel</a></p>`;
+          }
+          html += `<button onclick="logout()">Logout</button>`;
+          document.getElementById("container").innerHTML = html;
         }
       });
     };
