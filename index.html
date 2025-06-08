@@ -18,6 +18,7 @@
       --bg-dark: #1e1e2f;
       --text-dark: #f1f1f1;
       --card-dark: #2a2a3c;
+
       --blue: #007bff;
       --card-light: #fff;
     }
@@ -45,7 +46,7 @@
 
     h1 {
       font-size: 2.5rem;
-      margin: 20px auto;
+      margin-top: 20px;
       text-align: center;
     }
 
@@ -57,6 +58,7 @@
       padding: 15px;
       font-weight: 600;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      margin: 20px 0 40px 0;
       flex-wrap: wrap;
     }
 
@@ -112,14 +114,13 @@
     #container {
       width: 90%;
       max-width: 400px;
-      margin: 0 auto;
       background: var(--glass);
       padding: 40px;
       border-radius: 20px;
       border: 1px solid var(--border);
       backdrop-filter: blur(16px);
       box-shadow: 0 20px 30px rgba(0,0,0,0.1);
-      margin-top: 30px;
+      margin: 0 auto;
     }
 
     .input-group {
@@ -189,15 +190,6 @@
     .role-student {
       background-color: #0ea5e9;
     }
-
-    .dashboard-btns {
-      text-align: center;
-      margin-top: 30px;
-    }
-
-    .dashboard-btns button {
-      margin: 10px 0;
-    }
   </style>
 
   <script type="module">
@@ -214,7 +206,7 @@
       measurementId: "G-NZEEX42J3P"
     };
 
-    const adminEmails = ["anand31145@gmail.com"];
+      const adminEmails = ["anand31145@gmail.com"];
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
 
@@ -226,18 +218,20 @@
         if (user) {
           const isAdmin = adminEmails.includes(user.email);
           document.getElementById("container").innerHTML = `
+            <nav>
+              <a href="index.html">🏠 Home</a>
+              <a href="dashboard.html">📊 Dashboard</a>
+              <a href="mark-attendance.html">✅ Mark Attendance</a>
+              <a href="announcements.html">📢 Announcements</a>
+              ${isAdmin ? '<a href="admin.html">🛠️ Admin Panel</a>' : ''}
+            </nav>
             <h2 style="text-align:center;">
               Welcome, ${user.email}<br>
               <span class="role-badge ${isAdmin ? '' : 'role-student'}">
                 ${isAdmin ? '🛡️ Admin' : '🎓 Student'}
               </span>
             </h2>
-            <div class="dashboard-btns">
-              <button onclick="location.href='dashboard.html'">📊 Dashboard</button>
-              <button onclick="location.href='mark-attendance.html'">📝 Mark Attendance</button>
-              <button onclick="location.href='announcements.html'">📢 Announcements</button>
-              <button onclick="logout()">🚪 Logout</button>
-            </div>
+            <button onclick="logout()">Logout</button>
           `;
         }
       });
@@ -339,7 +333,6 @@
     <a href="login.html" class="active">login</a>
   </nav>
 
-  <!-- 👇 Login / Dashboard container -->
   <div id="container">Loading...</div>
 </body>
 </html>
