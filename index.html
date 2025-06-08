@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ChemEng Attendance Portal</title>
+  <title>User Login - ChemEng Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
@@ -14,7 +14,6 @@
       --accent-dark: #2b66d1;
       --text: #1c1c1c;
       --text-light: #ffffff;
-
       --bg-dark: #1e1e2f;
       --text-dark: #f1f1f1;
       --card-dark: #2a2a3c;
@@ -22,31 +21,22 @@
 
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
-      margin: 0;
       font-family: 'Inter', sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
       padding-bottom: 60px;
-      overflow-x: hidden;
       transition: background 0.3s, color 0.3s;
     }
 
     body.dark-mode {
       background: var(--bg-dark);
       color: var(--text-dark);
-    }
-
-    h1 {
-      font-size: 2.5rem;
-      margin-top: 20px;
-      text-align: center;
     }
 
     nav {
@@ -57,7 +47,6 @@
       padding: 15px;
       font-weight: 600;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-      margin: 20px 0 40px 0;
       flex-wrap: wrap;
     }
 
@@ -110,6 +99,12 @@
       background: var(--accent-dark);
     }
 
+    h1 {
+      text-align: center;
+      font-size: 2.5rem;
+      margin: 30px 0 10px;
+    }
+
     #container {
       width: 90%;
       max-width: 400px;
@@ -119,6 +114,7 @@
       border: 1px solid var(--border);
       backdrop-filter: blur(16px);
       box-shadow: 0 20px 30px rgba(0,0,0,0.1);
+      margin: auto;
     }
 
     .input-group {
@@ -189,6 +185,23 @@
       background-color: #0ea5e9;
     }
   </style>
+</head>
+<body>
+
+  <!-- 🌗 Dark Mode Button -->
+  <button class="toggle-mode" onclick="toggleMode()">🌗</button>
+
+  <!-- 🧭 Navigation Bar -->
+  <nav>
+    <a href="index.html" class="active">USER LOGIN</a>
+    <a href="students.html">OUR STUDENTS</a>
+    <a href="usefulllink.html">USEFUL LINKS</a>
+    <a href="studymaterial.html">STUDY MATERIAL</a>
+    <a href="suggestion.html">SUGGESTIONS</a>
+  </nav>
+
+  <h1>ChemEng Attendance Portal</h1>
+  <div id="container">Loading...</div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
@@ -216,14 +229,6 @@
         if (user) {
           const isAdmin = adminEmails.includes(user.email);
           document.getElementById("container").innerHTML = `
-            <nav>
-              <a href="index.html" class="active">Home</a>
-              <a href="students.html">Student profile</a>
-              <a href="usefulllink.html">Useful links</a>
-              <a href="studymaterial.html">Study Materials</a>
-              <a href="suggestion.html">Suggestions</a>
-                <a href="login.html">User Login</a>
-            </nav>
             <h2 style="text-align:center;">
               Welcome, ${user.email}<br>
               <span class="role-badge ${isAdmin ? '' : 'role-student'}">
@@ -315,10 +320,5 @@
       document.body.classList.toggle('dark-mode');
     };
   </script>
-</head>
-<body>
-  <h1>ChemEng Attendance Portal</h1>
-  <div id="container">Loading...</div>
-  <button class="toggle-mode" onclick="toggleMode()">🌗</button>
 </body>
 </html>
